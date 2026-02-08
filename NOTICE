@@ -1,0 +1,19 @@
+sfm-editor
+Copyright 2026 Yağız Cem Kocabıyık
+
+This product includes software developed by the following projects:
+
+* glad (MIT License, Apache License 2.0)
+  - glad source code: Copyright (c) 2013-2022 David Herberth (MIT)
+  - Khronos Specifications: Copyright (c) 2013-2020 The Khronos Group Inc. (Apache 2.0)
+  - EGL Specification and headers: Copyright (c) 2007-2016 The Khronos Group Inc. (Materials License)
+
+* GLFW (zlib License)
+  Copyright (c) 2002-2006 Marcus Geelnard
+  Copyright (c) 2006-2019 Camilla Löwy
+
+* OpenGL Mathematics (GLM) (MIT License)
+  Copyright (c) 2005 - G-Truc Creation
+
+* Dear ImGui (MIT License)
+  Copyright (c) 2014-2026 Omar Cornut
