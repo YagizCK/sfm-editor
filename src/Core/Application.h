@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,45 +29,45 @@
 #include <glm/glm.hpp>
 
 namespace sfmeditor {
-	extern GLFWwindow* g_nativeWindow;
+    extern GLFWwindow* g_nativeWindow;
 
-	class Application {
-	public:
-		Application();
-		~Application();
-		Application(const Application&) = default;
-		Application& operator=(const Application&) = default;
-		Application(Application&&) = default;
-		Application& operator=(Application&&) = default;
+    class Application {
+    public:
+        Application();
+        ~Application();
+        Application(const Application&) = default;
+        Application& operator=(const Application&) = default;
+        Application(Application&&) = default;
+        Application& operator=(Application&&) = default;
 
-		void run();
+        void run();
 
-		float getDeltaTime() const { return m_deltaTime; }
+        float getDeltaTime() const { return m_deltaTime; }
 
-	private:
-		void renderScene() const;
-		void onImportMap();
-		void loadMap(const std::string& filepath);
-		void onSaveMap() const;
-		void onExit();
+    private:
+        void renderScene() const;
+        void onImportMap();
+        void loadMap(const std::string& filepath);
+        void onSaveMap() const;
+        void onExit();
 
-		float m_lastFrameTime = 0.0f;
-		float m_deltaTime = 0.0f;
+        float m_lastFrameTime = 0.0f;
+        float m_deltaTime = 0.0f;
 
-		std::unique_ptr<Window> m_window;
-		std::unique_ptr<UIManager> m_uiManager;
-		std::unique_ptr<SceneProperties> m_sceneProperties;
-		std::unique_ptr<Shader> m_shader;
-		std::unique_ptr<Framebuffer> m_framebuffer;
-		std::unique_ptr<EditorCamera> m_camera;
-		std::unique_ptr<SceneGrid> m_grid;
+        std::unique_ptr<Window> m_window;
+        std::unique_ptr<UIManager> m_uiManager;
+        std::unique_ptr<SceneProperties> m_sceneProperties;
+        std::unique_ptr<Shader> m_shader;
+        std::unique_ptr<Framebuffer> m_framebuffer;
+        std::unique_ptr<EditorCamera> m_camera;
+        std::unique_ptr<SceneGrid> m_grid;
 
-		bool m_running = true;
+        bool m_running = true;
 
-		std::vector<Point> m_points;
-		uint32_t m_VAO = 0, m_VBO = 0;
+        std::vector<Point> m_points;
+        uint32_t m_VAO = 0, m_VBO = 0;
 
-		glm::vec2 m_viewportSize = {0.0f, 0.0f};
-		glm::vec2 m_lastViewportSize = {0.0f, 0.0f};
-	};
+        glm::vec2 m_viewportSize = {0.0f, 0.0f};
+        glm::vec2 m_lastViewportSize = {0.0f, 0.0f};
+    };
 }

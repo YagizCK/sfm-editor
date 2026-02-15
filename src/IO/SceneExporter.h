@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,14 +22,14 @@
 #include <vector>
 
 namespace sfmeditor {
-	class SceneExporter {
-	public:
-		static bool exportFile(const std::string& filepath, const std::vector<Point>& points);
+    class SceneExporter {
+    public:
+        static bool exportFile(const std::string& filepath, const std::vector<Point>& points);
 
-	private:
-		static bool exportCOLMAP(const std::string& filepath, const std::vector<Point>& points);
-		static bool exportPLY(const std::string& filepath, const std::vector<Point>& points);
-		static bool exportOBJ(const std::string& filepath, const std::vector<Point>& points);
-		static bool exportXYZ(const std::string& filepath, const std::vector<Point>& points);
-	};
+    private:
+        static bool exportCOLMAP(const std::string& filepath, const std::vector<Point>& points);
+        static bool exportPLY(const std::string& filepath, const std::vector<Point>& points);
+        static bool exportOBJ(const std::string& filepath, const std::vector<Point>& points);
+        static bool exportXYZ(const std::string& filepath, const std::vector<Point>& points);
+    };
 }

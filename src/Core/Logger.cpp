@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,69 +22,69 @@
 #include <iomanip>
 
 namespace sfmeditor {
-	std::vector<LogEntry> Logger::m_logs;
+    std::vector<LogEntry> Logger::m_logs;
 
-	const std::string kReset = "\033[0m";
-	const std::string kRed = "\033[31m";
-	const std::string kGreen = "\033[32m";
-	const std::string kYellow = "\033[33m";
-	const std::string kWhite = "\033[37m";
-	const std::string kMagenta = "\033[35m";
+    const std::string kReset = "\033[0m";
+    const std::string kRed = "\033[31m";
+    const std::string kGreen = "\033[32m";
+    const std::string kYellow = "\033[33m";
+    const std::string kWhite = "\033[37m";
+    const std::string kMagenta = "\033[35m";
 
-	void Logger::init() {
-	}
+    void Logger::init() {
+    }
 
-	void Logger::info(const std::string& message) {
-		log(LogLevel::Info, message);
-	}
+    void Logger::info(const std::string& message) {
+        log(LogLevel::Info, message);
+    }
 
-	void Logger::warn(const std::string& message) {
-		log(LogLevel::Warning, message);
-	}
+    void Logger::warn(const std::string& message) {
+        log(LogLevel::Warning, message);
+    }
 
-	void Logger::error(const std::string& message) {
-		log(LogLevel::Error, message);
-	}
+    void Logger::error(const std::string& message) {
+        log(LogLevel::Error, message);
+    }
 
-	void Logger::critical(const std::string& message) {
-		log(LogLevel::Critical, message);
-	}
+    void Logger::critical(const std::string& message) {
+        log(LogLevel::Critical, message);
+    }
 
-	void Logger::log(LogLevel level, const std::string& message) {
-		std::string timeStr = currentDateTime();
+    void Logger::log(LogLevel level, const std::string& message) {
+        std::string timeStr = currentDateTime();
 
-		m_logs.emplace_back(level, message, timeStr);
+        m_logs.emplace_back(level, message, timeStr);
 
-		switch (level) {
-		case LogLevel::Info:
-			std::cout << kGreen << "[INFO] " << message << kReset << "\n";
-			break;
-		case LogLevel::Warning:
-			std::cout << kYellow << "[WARN] " << message << kReset << "\n";
-			break;
-		case LogLevel::Error:
-			std::cerr << kRed << "[ERROR] " << message << kReset << "\n";
-			break;
-		case LogLevel::Critical:
-			std::cerr << kMagenta << "[CRITICAL] " << message << kReset << "\n";
-			break;
-		}
-	}
+        switch (level) {
+        case LogLevel::Info:
+            std::cout << kGreen << "[INFO] " << message << kReset << "\n";
+            break;
+        case LogLevel::Warning:
+            std::cout << kYellow << "[WARN] " << message << kReset << "\n";
+            break;
+        case LogLevel::Error:
+            std::cerr << kRed << "[ERROR] " << message << kReset << "\n";
+            break;
+        case LogLevel::Critical:
+            std::cerr << kMagenta << "[CRITICAL] " << message << kReset << "\n";
+            break;
+        }
+    }
 
-	std::string Logger::currentDateTime() {
-		const auto now = std::chrono::system_clock::now();
-		auto inTimeT = std::chrono::system_clock::to_time_t(now);
+    std::string Logger::currentDateTime() {
+        const auto now = std::chrono::system_clock::now();
+        auto inTimeT = std::chrono::system_clock::to_time_t(now);
 
-		std::stringstream ss;
-		struct tm timeInfo;
+        std::stringstream ss;
+        struct tm timeInfo;
 
 #ifdef _WIN32
-		localtime_s(&timeInfo, &inTimeT);
+        localtime_s(&timeInfo, &inTimeT);
 #else
-		localtime_r(&inTimeT, &timeInfo);
+        localtime_r(&inTimeT, &timeInfo);
 #endif
 
-		ss << std::put_time(&timeInfo, "%H:%M:%S");
-		return ss.str();
-	}
+        ss << std::put_time(&timeInfo, "%H:%M:%S");
+        return ss.str();
+    }
 }

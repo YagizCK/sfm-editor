@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,37 +21,37 @@
 #include <glm/vec2.hpp>
 
 namespace sfmeditor {
-	template <typename... Args>
-	class Signal {
-	public:
-		using Slot = std::function<void(Args...)>;
+    template <typename... Args>
+    class Signal {
+    public:
+        using Slot = std::function<void(Args...)>;
 
-		void connect(const Slot& slot) {
-			m_slots.push_back(slot);
-		}
+        void connect(const Slot& slot) {
+            m_slots.push_back(slot);
+        }
 
-		void emit(Args... args) {
-			for (const auto& slot : m_slots) {
-				slot(args...);
-			}
-		}
+        void emit(Args... args) {
+            for (const auto& slot : m_slots) {
+                slot(args...);
+            }
+        }
 
-	private:
-		std::vector<Slot> m_slots;
-	};
+    private:
+        std::vector<Slot> m_slots;
+    };
 
-	class Events {
-	public:
-		inline static Signal<int, int> onWindowResize;
+    class Events {
+    public:
+        inline static Signal<int, int> onWindowResize;
 
-		inline static Signal<int, bool> onKey;
+        inline static Signal<int, bool> onKey;
 
-		inline static Signal<int, bool> onMouseButton;
+        inline static Signal<int, bool> onMouseButton;
 
-		inline static Signal<glm::vec2, glm::vec2> onMouseMove;
+        inline static Signal<glm::vec2, glm::vec2> onMouseMove;
 
-		inline static Signal<float> onMouseScroll;
+        inline static Signal<float> onMouseScroll;
 
-		inline static Signal<std::string> onFileDrop;
-	};
+        inline static Signal<std::string> onFileDrop;
+    };
 }

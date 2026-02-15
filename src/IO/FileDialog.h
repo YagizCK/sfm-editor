@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,10 +19,10 @@
 #include <string>
 
 namespace sfmeditor {
-	class FileDialog {
-	public:
-		static std::string openFile(const char* filter);
+    class FileDialog {
+    public:
+        static std::string openFile(const char* filter);
 
-		static std::string saveFile(const char* filter);
-	};
+        static std::string saveFile(const char* filter);
+    };
 }

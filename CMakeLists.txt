@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.10)
 
 project(sfm-editor VERSION 0.1.0 LANGUAGES CXX C)
 
@@ -43,6 +43,16 @@ target_link_libraries(imgui PUBLIC
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE external/glm)
 
+# ImGuizmo
+set(IMGUIZMO_DIR external/ImGuizmo)
+file(GLOB_RECURSE IMGUIZMO_SOURCES ${IMGUIZMO_DIR}/*.cpp)
+add_library(imguizmo STATIC ${IMGUIZMO_SOURCES})
+target_include_directories(imguizmo PUBLIC ${IMGUIZMO_DIR})
+target_link_libraries(imguizmo PUBLIC
+    imgui
+    glm
+)
+
 file(GLOB_RECURSE SOURCES
     src/*.cpp
     src/*.h
@@ -58,6 +68,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     imgui
     glm
+    imguizmo
 )
 
 if(WIN32)

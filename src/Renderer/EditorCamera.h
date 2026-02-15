@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,77 +18,82 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <imgui.h>
+#include <ImGuizmo.h>
+
 
 namespace sfmeditor {
-	enum class ProjectionMode {
-		Perspective,
-		Orthographic
-	};
+    enum class ProjectionMode {
+        Perspective,
+        Orthographic
+    };
 
-	enum class CameraStyle {
-		Free,
-		Orbit
-	};
+    enum class CameraStyle {
+        Free,
+        Orbit
+    };
 
-	class EditorCamera {
-	public:
-		EditorCamera();
+    class EditorCamera {
+    public:
+        EditorCamera();
 
-		ProjectionMode m_projectionMode = ProjectionMode::Perspective;
-		CameraStyle m_cameraStyle = CameraStyle::Free;
+        ProjectionMode m_projectionMode = ProjectionMode::Perspective;
+        CameraStyle m_cameraStyle = CameraStyle::Free;
 
-		glm::vec3 m_position = {0.0f, 0.0f, 0.0f};
-		glm::quat m_orientation = {1.0f, 0.0f, 0.0f, 0.0f};
-		float m_distance = 0.0f;
+        glm::vec3 m_position = {0.0f, 0.0f, 0.0f};
+        glm::quat m_orientation = {1.0f, 0.0f, 0.0f, 0.0f};
+        float m_distance = 0.0f;
 
-		glm::vec3 m_resetPosition = {5.0f, 5.0f, 5.0f};
-		glm::vec3 m_focalPoint = {0.0f, 0.0f, 0.0f};
-		float m_resetDistance = 10.0f;
+        glm::vec3 m_resetPosition = {5.0f, 5.0f, 5.0f};
+        glm::vec3 m_focalPoint = {0.0f, 0.0f, 0.0f};
+        float m_resetDistance = 10.0f;
 
-		float m_FOV = 103.0f;
-		float m_orthoSize = 170.0f;
+        float m_FOV = 103.0f;
+        float m_orthoSize = 170.0f;
 
-		float m_pitch = 0.0f;
-		float m_yaw = 0.0f;
-		float m_roll = 0.0f;
+        float m_pitch = 0.0f;
+        float m_yaw = 0.0f;
+        float m_roll = 0.0f;
 
-		float m_mouseSensitivity = 0.005f;
-		float m_scrollSensitivity = 2.0f;
+        float m_mouseSensitivity = 0.005f;
+        float m_scrollSensitivity = 2.0f;
 
-		float m_movementSpeed = 5.0f;
-		const float m_minMovementSpeed = 0.1f;
+        float m_movementSpeed = 5.0f;
+        const float m_minMovementSpeed = 0.1f;
 
-		void onUpdate(float dt, bool allowInput);
-		void onResize(float width, float height);
+        int m_gizmoOperation = ImGuizmo::TRANSLATE;
 
-		const glm::mat4& getViewMatrix() const { return m_viewMatrix; }
-		const glm::mat4& getProjection() const { return m_projection; }
-		glm::mat4 getViewProjection() const { return m_projection * m_viewMatrix; }
+        void onUpdate(float dt, bool allowInput);
+        void onResize(float width, float height);
 
-		glm::vec3 getForwardVector() const;
-		glm::vec3 getRightVector() const;
-		glm::vec3 getUpVector() const;
+        const glm::mat4& getViewMatrix() const { return m_viewMatrix; }
+        const glm::mat4& getProjection() const { return m_projection; }
+        glm::mat4 getViewProjection() const { return m_projection * m_viewMatrix; }
 
-		void updateProjection();
-		void updateView();
+        glm::vec3 getForwardVector() const;
+        glm::vec3 getRightVector() const;
+        glm::vec3 getUpVector() const;
 
-		void lookAt(const glm::vec3& target);
+        void updateProjection();
+        void updateView();
 
-		void resetView();
+        void lookAt(const glm::vec3& target);
 
-		void setRotationFromUI();
-		void setOrientationFromUI(const glm::quat& newQuat);
+        void resetView();
 
-		void setCameraStyle(CameraStyle style);
+        void setRotationFromUI();
+        void setOrientationFromUI(const glm::quat& newQuat);
 
-	private:
-		void updateEulerAngles();
+        void setCameraStyle(CameraStyle style);
 
-		float m_aspectRatio = 1.778f;
-		float m_nearClip = 0.0001f;
-		float m_farClip = 10000.0f;
+    private:
+        void updateEulerAngles();
 
-		glm::mat4 m_viewMatrix = glm::mat4(1.0f);
-		glm::mat4 m_projection = glm::mat4(1.0f);
-	};
+        float m_aspectRatio = 1.778f;
+        float m_nearClip = 0.0001f;
+        float m_farClip = 10000.0f;
+
+        glm::mat4 m_viewMatrix = glm::mat4(1.0f);
+        glm::mat4 m_projection = glm::mat4(1.0f);
+    };
 }

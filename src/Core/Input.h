@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,24 +21,24 @@
 struct GLFWwindow;
 
 namespace sfmeditor {
-	class Input {
-	public:
-		static void init();
+    class Input {
+    public:
+        static void init();
 
-		static bool isKeyPressed(int keycode);
+        static bool isKeyPressed(int keycode);
 
-		static bool isMouseButtonPressed(int button);
+        static bool isMouseButtonPressed(int button);
 
-		static glm::vec2 getMousePosition();
-		static float getMouseX();
-		static float getMouseY();
+        static glm::vec2 getMousePosition();
+        static float getMouseX();
+        static float getMouseY();
 
-		static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-		static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-		static void cursorPosCallback(GLFWwindow* window, double xPos, double yPos);
-		static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset);
+        static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+        static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+        static void cursorPosCallback(GLFWwindow* window, double xPos, double yPos);
+        static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset);
 
-	private:
-		static glm::vec2 m_lastMousePos;
-	};
+    private:
+        static glm::vec2 m_lastMousePos;
+    };
 }

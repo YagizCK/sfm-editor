@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,25 +19,25 @@
 #include <cstdint>
 
 namespace sfmeditor {
-	class Framebuffer {
-	public:
-		Framebuffer(uint32_t width, uint32_t height);
-		~Framebuffer();
-		Framebuffer(const Framebuffer&) = default;
-		Framebuffer& operator=(const Framebuffer&) = default;
-		Framebuffer(Framebuffer&&) = default;
-		Framebuffer& operator=(Framebuffer&&) = default;
+    class Framebuffer {
+    public:
+        Framebuffer(uint32_t width, uint32_t height);
+        ~Framebuffer();
+        Framebuffer(const Framebuffer&) = default;
+        Framebuffer& operator=(const Framebuffer&) = default;
+        Framebuffer(Framebuffer&&) = default;
+        Framebuffer& operator=(Framebuffer&&) = default;
 
-		void bind() const;
-		void unbind() const;
-		void resize(uint32_t width, uint32_t height);
+        void bind() const;
+        void unbind() const;
+        void resize(uint32_t width, uint32_t height);
 
-		uint32_t getTextureID() const { return m_colorAttachment; }
+        uint32_t getTextureID() const { return m_colorAttachment; }
 
-	private:
-		uint32_t m_rendererID = 0;
-		uint32_t m_colorAttachment = 0;
-		uint32_t m_depthAttachment = 0;
-		uint32_t m_width, m_height;
-	};
+    private:
+        uint32_t m_rendererID = 0;
+        uint32_t m_colorAttachment = 0;
+        uint32_t m_depthAttachment = 0;
+        uint32_t m_width, m_height;
+    };
 }

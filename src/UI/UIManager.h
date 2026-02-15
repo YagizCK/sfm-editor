@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,35 +25,35 @@
 
 
 namespace sfmeditor {
-	class Window;
-	class EditorCamera;
+    class Window;
+    class EditorCamera;
 
-	class UIManager {
-	public:
-		explicit UIManager(Window* window);
-		~UIManager();
-		UIManager(const UIManager&) = default;
-		UIManager& operator=(const UIManager&) = default;
-		UIManager(UIManager&&) = default;
-		UIManager& operator=(UIManager&&) = default;
+    class UIManager {
+    public:
+        explicit UIManager(Window* window);
+        ~UIManager();
+        UIManager(const UIManager&) = default;
+        UIManager& operator=(const UIManager&) = default;
+        UIManager(UIManager&&) = default;
+        UIManager& operator=(UIManager&&) = default;
 
-		void beginFrame();
-		void endFrame() const;
+        void beginFrame();
+        void endFrame() const;
 
-		void renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
-		                       const std::function<void()>& onExit);
+        void renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
+                               const std::function<void()>& onExit);
 
-		void renderViewport(uint32_t textureID, glm::vec2& outSize, bool& outHovered, bool& outFocused,
-		                    const EditorCamera* camera);
+        void renderViewport(uint32_t textureID, glm::vec2& outSize, bool& outHovered, bool& outFocused,
+                            const EditorCamera* camera);
 
-		void renderInfoPanel(const std::unique_ptr<SceneProperties>& sceneProperties,
-		                     const std::unique_ptr<EditorCamera>& camera, int pointCount);
+        void renderInfoPanel(const std::unique_ptr<SceneProperties>& sceneProperties,
+                             const std::unique_ptr<EditorCamera>& camera, int pointCount);
 
-		void renderConsole();
+        void renderConsole();
 
-	private:
-		void renderDockspace();
-		Window* m_windowRef = nullptr;
-		bool m_resetLayout = true;
-	};
+    private:
+        void renderDockspace();
+        Window* m_windowRef = nullptr;
+        bool m_resetLayout = true;
+    };
 }

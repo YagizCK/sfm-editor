@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,10 @@
 #include "Core/Application.h"
 
 int main() {
-	const auto app = new sfmeditor::Application();
+    const auto app = new sfmeditor::Application();
 
-	app->run();
+    app->run();
 
-	delete app;
-	return 0;
+    delete app;
+    return 0;
 }

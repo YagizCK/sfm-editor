@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,35 +21,35 @@
 #include <mutex>
 
 namespace sfmeditor {
-	enum class LogLevel {
-		Info,
-		Warning,
-		Error,
-		Critical
-	};
+    enum class LogLevel {
+        Info,
+        Warning,
+        Error,
+        Critical
+    };
 
-	struct LogEntry {
-		LogLevel level;
-		std::string message;
-		std::string timestamp;
-	};
+    struct LogEntry {
+        LogLevel level;
+        std::string message;
+        std::string timestamp;
+    };
 
-	class Logger {
-	public:
-		static void init();
+    class Logger {
+    public:
+        static void init();
 
-		static void info(const std::string& message);
-		static void warn(const std::string& message);
-		static void error(const std::string& message);
-		static void critical(const std::string& message);
+        static void info(const std::string& message);
+        static void warn(const std::string& message);
+        static void error(const std::string& message);
+        static void critical(const std::string& message);
 
-		static const std::vector<LogEntry>& getLogs() { return m_logs; }
-		static void clear() { m_logs.clear(); }
+        static const std::vector<LogEntry>& getLogs() { return m_logs; }
+        static void clear() { m_logs.clear(); }
 
-	private:
-		static void log(LogLevel level, const std::string& message);
-		static std::string currentDateTime();
+    private:
+        static void log(LogLevel level, const std::string& message);
+        static std::string currentDateTime();
 
-		static std::vector<LogEntry> m_logs;
-	};
+        static std::vector<LogEntry> m_logs;
+    };
 }

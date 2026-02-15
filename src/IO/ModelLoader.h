@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,17 +22,17 @@
 #include <vector>
 
 namespace sfmeditor {
-	class ModelLoader {
-	public:
-		static std::vector<Point> load(const std::string& filepath);
+    class ModelLoader {
+    public:
+        static std::vector<Point> load(const std::string& filepath);
 
-	private:
-		static std::vector<Point> loadCOLMAP(const std::string& filepath);
-		static std::vector<Point> loadPLY(const std::string& filepath);
-		static std::vector<Point> loadOBJ(const std::string& filepath);
-		static std::vector<Point> loadXYZ(const std::string& filepath);
+    private:
+        static std::vector<Point> loadCOLMAP(const std::string& filepath);
+        static std::vector<Point> loadPLY(const std::string& filepath);
+        static std::vector<Point> loadOBJ(const std::string& filepath);
+        static std::vector<Point> loadXYZ(const std::string& filepath);
 
-		static std::vector<Point> loadColmapBinary(const std::string& filepath);
-		static std::vector<Point> loadColmapText(const std::string& filepath);
-	};
+        static std::vector<Point> loadColmapBinary(const std::string& filepath);
+        static std::vector<Point> loadColmapText(const std::string& filepath);
+    };
 }

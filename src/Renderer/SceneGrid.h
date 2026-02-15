@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,29 +23,29 @@
 #include <memory>
 
 namespace sfmeditor {
-	class SceneGrid {
-	public:
-		SceneGrid();
-		~SceneGrid();
-		SceneGrid(const SceneGrid&) = delete;
-		SceneGrid& operator=(const SceneGrid&) = delete;
-		SceneGrid(SceneGrid&&) = default;
-		SceneGrid& operator=(SceneGrid&&) = default;
+    class SceneGrid {
+    public:
+        SceneGrid();
+        ~SceneGrid();
+        SceneGrid(const SceneGrid&) = delete;
+        SceneGrid& operator=(const SceneGrid&) = delete;
+        SceneGrid(SceneGrid&&) = default;
+        SceneGrid& operator=(SceneGrid&&) = default;
 
-		void draw(const std::unique_ptr<SceneProperties>& sceneProperties, const glm::mat4& view,
-		          const glm::mat4& projection, const glm::vec3& cameraPos) const;
+        void draw(const std::unique_ptr<SceneProperties>& sceneProperties, const glm::mat4& view,
+                  const glm::mat4& projection, const glm::vec3& cameraPos) const;
 
-	private:
-		uint32_t m_planeVAO = 0, m_planeVBO = 0, m_planeEBO = 0;
-		uint32_t m_axesVAO = 0, m_axesVBO = 0;
-		std::unique_ptr<Shader> m_shader;
+    private:
+        uint32_t m_planeVAO = 0, m_planeVBO = 0, m_planeEBO = 0;
+        uint32_t m_axesVAO = 0, m_axesVBO = 0;
+        std::unique_ptr<Shader> m_shader;
 
-		float m_gridSize = 4000.0f;
-		float m_axisLength = 4000.0f;
+        float m_gridSize = 4000.0f;
+        float m_axisLength = 4000.0f;
 
-		glm::vec3 m_gridColor = glm::vec3(0.4f);
-		glm::vec3 m_xAxisColor = glm::vec3(1.0f, 0.1f, 0.1f);
-		glm::vec3 m_yAxisColor = glm::vec3(0.1f, 1.0f, 0.1f);
-		glm::vec3 m_zAxisColor = glm::vec3(0.1f, 0.1f, 1.0f);
-	};
+        glm::vec3 m_gridColor = glm::vec3(0.4f);
+        glm::vec3 m_xAxisColor = glm::vec3(1.0f, 0.1f, 0.1f);
+        glm::vec3 m_yAxisColor = glm::vec3(0.1f, 1.0f, 0.1f);
+        glm::vec3 m_zAxisColor = glm::vec3(0.1f, 0.1f, 1.0f);
+    };
 }

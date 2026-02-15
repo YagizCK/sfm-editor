@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,56 +17,57 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
 struct GLFWwindow;
 
 namespace sfmeditor {
-	static bool g_glfwInitialized = false;
+    static bool g_glfwInitialized = false;
 
-	struct WindowProps {
-		std::string title;
-		uint32_t width;
-		uint32_t height;
+    struct WindowProps {
+        std::string title;
+        uint32_t width;
+        uint32_t height;
 
-		explicit WindowProps(const std::string& title = "SFM Editor",
-		                     const uint32_t width = 1600,
-		                     const uint32_t height = 900)
-			: title(title), width(width), height(height) {
-		}
-	};
+        explicit WindowProps(const std::string& title = "SFM Editor",
+                             const uint32_t width = 1600,
+                             const uint32_t height = 900)
+            : title(title), width(width), height(height) {
+        }
+    };
 
-	class Window {
-	public:
-		explicit Window(const WindowProps& props);
-		~Window();
-		Window(const Window&) = default;
-		Window& operator=(const Window&) = default;
-		Window(Window&&) = default;
-		Window& operator=(Window&&) = default;
+    class Window {
+    public:
+        explicit Window(const WindowProps& props);
+        ~Window();
+        Window(const Window&) = default;
+        Window& operator=(const Window&) = default;
+        Window(Window&&) = default;
+        Window& operator=(Window&&) = default;
 
-		void onUpdate() const;
+        void onUpdate() const;
 
-		uint32_t getWidth() const { return m_data.width; }
+        uint32_t getWidth() const { return m_data.width; }
 
-		uint32_t getHeight() const { return m_data.height; }
+        uint32_t getHeight() const { return m_data.height; }
 
-		GLFWwindow* getNativeWindow() const { return m_window; }
+        GLFWwindow* getNativeWindow() const { return m_window; }
 
-		bool shouldClose() const;
+        bool shouldClose() const;
 
-	private:
-		void init(const WindowProps& props);
-		void shutdown() const;
+    private:
+        void init(const WindowProps& props);
+        void shutdown() const;
 
-		static void* gladLoaderAdapter(const char* name);
+        static void* gladLoaderAdapter(const char* name);
 
-		GLFWwindow* m_window;
+        GLFWwindow* m_window;
 
-		struct WindowData {
-			std::string title;
-			uint32_t width, height;
-		};
+        struct WindowData {
+            std::string title;
+            uint32_t width, height;
+        };
 
-		WindowData m_data;
-	};
+        WindowData m_data;
+    };
 }

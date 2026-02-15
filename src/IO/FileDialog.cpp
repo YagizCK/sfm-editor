@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,33 +24,33 @@
 #include <GLFW/glfw3native.h>
 
 namespace sfmeditor {
-	std::string FileDialog::openFile(const char* filter) {
-		OPENFILENAMEA ofn;
-		CHAR szFile[260] = {0};
-		ZeroMemory(&ofn, sizeof(OPENFILENAME));
-		ofn.lStructSize = sizeof(OPENFILENAME);
-		ofn.hwndOwner = glfwGetWin32Window(g_nativeWindow);
-		ofn.lpstrFile = szFile;
-		ofn.nMaxFile = sizeof(szFile);
-		ofn.lpstrFilter = filter;
-		ofn.nFilterIndex = 1;
-		ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+    std::string FileDialog::openFile(const char* filter) {
+        OPENFILENAMEA ofn;
+        CHAR szFile[260] = {0};
+        ZeroMemory(&ofn, sizeof(OPENFILENAME));
+        ofn.lStructSize = sizeof(OPENFILENAME);
+        ofn.hwndOwner = glfwGetWin32Window(g_nativeWindow);
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile);
+        ofn.lpstrFilter = filter;
+        ofn.nFilterIndex = 1;
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 
-		return (GetOpenFileNameA(&ofn) == TRUE) ? std::string(ofn.lpstrFile) : std::string();
-	}
+        return (GetOpenFileNameA(&ofn) == TRUE) ? std::string(ofn.lpstrFile) : std::string();
+    }
 
-	std::string FileDialog::saveFile(const char* filter) {
-		OPENFILENAMEA ofn;
-		CHAR szFile[260] = {0};
-		ZeroMemory(&ofn, sizeof(OPENFILENAME));
-		ofn.lStructSize = sizeof(OPENFILENAME);
-		ofn.hwndOwner = glfwGetWin32Window(g_nativeWindow);
-		ofn.lpstrFile = szFile;
-		ofn.nMaxFile = sizeof(szFile);
-		ofn.lpstrFilter = filter;
-		ofn.nFilterIndex = 1;
-		ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+    std::string FileDialog::saveFile(const char* filter) {
+        OPENFILENAMEA ofn;
+        CHAR szFile[260] = {0};
+        ZeroMemory(&ofn, sizeof(OPENFILENAME));
+        ofn.lStructSize = sizeof(OPENFILENAME);
+        ofn.hwndOwner = glfwGetWin32Window(g_nativeWindow);
+        ofn.lpstrFile = szFile;
+        ofn.nMaxFile = sizeof(szFile);
+        ofn.lpstrFilter = filter;
+        ofn.nFilterIndex = 1;
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 
-		return (GetSaveFileNameA(&ofn) == TRUE) ? std::string(ofn.lpstrFile) : std::string();
-	}
+        return (GetSaveFileNameA(&ofn) == TRUE) ? std::string(ofn.lpstrFile) : std::string();
+    }
 }

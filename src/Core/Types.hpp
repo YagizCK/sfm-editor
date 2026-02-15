@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2026 Yağız Cem Kocabıyık
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,14 @@
 #include <glm/vec3.hpp>
 
 namespace sfmeditor {
-	struct Point {
-		glm::vec3 position;
-		glm::vec3 color;
-	};
+    struct Point {
+        glm::vec3 position;
+        glm::vec3 color;
+    };
 
-	struct SceneProperties {
-		glm::vec3 backgroundColor = glm::vec3(0.1f, 0.1f, 0.1f);
-		bool showGrid = true;
-		bool showAxes = true;
-	};
+    struct SceneProperties {
+        glm::vec3 backgroundColor = glm::vec3(0.1f, 0.1f, 0.1f);
+        bool showGrid = true;
+        bool showAxes = true;
+    };
 }
