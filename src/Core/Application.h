@@ -21,6 +21,7 @@
 #include "Renderer/EditorCamera.h"
 #include "Renderer/Shader.h"
 #include "Renderer/SceneGrid.h"
+#include "Renderer/LineRenderer.h"
 #include "Types.hpp"
 #include "Window.h"
 
@@ -57,10 +58,11 @@ namespace sfmeditor {
         std::unique_ptr<Window> m_window;
         std::unique_ptr<UIManager> m_uiManager;
         std::unique_ptr<SceneProperties> m_sceneProperties;
-        std::unique_ptr<Shader> m_shader;
+        std::unique_ptr<Shader> m_pointShader;
         std::unique_ptr<Framebuffer> m_framebuffer;
         std::unique_ptr<EditorCamera> m_camera;
         std::unique_ptr<SceneGrid> m_grid;
+        std::unique_ptr<LineRenderer> m_lineRenderer;
 
         bool m_running = true;
 

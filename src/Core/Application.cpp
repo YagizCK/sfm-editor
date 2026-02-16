@@ -31,12 +31,20 @@
 #include <format>
 #include <ImGuizmo.h>
 
+#include "KeyCodes.hpp"
+
 
 namespace sfmeditor {
     GLFWwindow* g_nativeWindow = nullptr;
 
     Application::Application() {
         Logger::init();
+
+        Events::onKey.connect([this](const int key, const bool pressed) {
+            if (m_running && pressed && key == SFM_KEY_ESCAPE) {
+                m_running = false;
+            }
+        });
 
         m_window = std::make_unique<Window>(WindowProps("SFM Editor", 1600, 900));
         g_nativeWindow = m_window->getNativeWindow();
@@ -45,8 +53,9 @@ namespace sfmeditor {
         m_sceneProperties = std::make_unique<SceneProperties>();
         m_framebuffer = std::make_unique<Framebuffer>(1600, 900);
         m_camera = std::make_unique<EditorCamera>();
-        m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+        m_pointShader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
         m_grid = std::make_unique<SceneGrid>();
+        m_lineRenderer = std::make_unique<LineRenderer>();
 
         glEnable(GL_PROGRAM_POINT_SIZE);
         glEnable(GL_DEPTH_TEST);
@@ -79,8 +88,10 @@ namespace sfmeditor {
                 m_camera->onResize(m_viewportSize.x, m_viewportSize.y);
             }
 
-            const bool canMoveCamera = viewportFocused && !ImGuizmo::IsUsing();
-            m_camera->onUpdate(m_deltaTime, canMoveCamera);
+            m_lineRenderer->onUpdate(m_deltaTime);
+
+            viewportHovered = viewportHovered && !ImGuizmo::IsUsing();
+            m_camera->onUpdate(m_deltaTime, viewportFocused, viewportHovered);
 
             // Render Pass
             m_framebuffer->bind();
@@ -115,16 +126,17 @@ namespace sfmeditor {
     }
 
     void Application::renderScene() const {
-        m_grid->draw(m_sceneProperties, m_camera->getViewMatrix(), m_camera->getProjection(), m_camera->m_position);
+        m_grid->draw(m_sceneProperties, m_camera);
+
+        m_lineRenderer->draw(m_camera);
 
         if (m_points.empty()) return;
 
-        m_shader->bind();
-        m_shader->setMat4("u_ViewProjection", m_camera->getViewProjection());
-
+        m_pointShader->bind();
+        m_pointShader->setMat4("u_ViewProjection", m_camera->getViewProjection());
         glBindVertexArray(m_VAO);
         glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_points.size()));
-        m_shader->unbind();
+        m_pointShader->unbind();
     }
 
     void Application::onImportMap() {

@@ -67,8 +67,8 @@ namespace sfmeditor {
         glDeleteBuffers(1, &m_axesVBO);
     }
 
-    void SceneGrid::draw(const std::unique_ptr<SceneProperties>& sceneProperties, const glm::mat4& view,
-                         const glm::mat4& projection, const glm::vec3& cameraPos) const {
+    void SceneGrid::draw(const std::unique_ptr<SceneProperties>& sceneProperties,
+                         const std::unique_ptr<EditorCamera>& camera) const {
         if (!sceneProperties->showGrid && !sceneProperties->showAxes) return;
 
         glEnable(GL_BLEND);
@@ -77,9 +77,11 @@ namespace sfmeditor {
         glDepthMask(GL_FALSE);
         glDisable(GL_CULL_FACE);
 
+        glm::vec3 cameraPos = camera->position;
+
         m_shader->bind();
-        m_shader->setMat4("u_View", view);
-        m_shader->setMat4("u_Projection", projection);
+        m_shader->setMat4("u_View", camera->getViewMatrix());
+        m_shader->setMat4("u_Projection", camera->getProjection());
         m_shader->setVec3("u_CameraPos", cameraPos);
         m_shader->setFloat("u_GridSize", m_gridSize);
 

@@ -32,15 +32,20 @@
 
 namespace sfmeditor {
     EditorCamera::EditorCamera() {
-        m_position = m_resetPosition;
-        m_distance = m_resetDistance;
-        lookAt(m_focalPoint);
+        position = resetPosition;
+        distance = resetDistance;
+        lookAt(focalPoint);
         updateView();
         updateProjection();
         updateEulerAngles();
 
         Events::onKey.connect([this](const int key, const bool pressed) {
+            if (!m_viewportFocused) return;
+
             if (!pressed) return;
+
+            if (m_viewportHovered && key == SFM_MOUSE_BUTTON_LEFT) {
+            }
 
             if (key == SFM_KEY_F) {
                 resetView();
@@ -48,31 +53,33 @@ namespace sfmeditor {
 
             if (!Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
                 switch (key) {
-                case SFM_KEY_Q: m_gizmoOperation = -1;
+                case SFM_KEY_Q: gizmoOperation = -1;
                     break;
-                case SFM_KEY_W: m_gizmoOperation = ImGuizmo::TRANSLATE;
+                case SFM_KEY_W: gizmoOperation = ImGuizmo::TRANSLATE;
                     break;
-                case SFM_KEY_E: m_gizmoOperation = ImGuizmo::ROTATE;
+                case SFM_KEY_E: gizmoOperation = ImGuizmo::ROTATE;
                     break;
-                case SFM_KEY_R: m_gizmoOperation = ImGuizmo::SCALE;
+                case SFM_KEY_R: gizmoOperation = ImGuizmo::SCALE;
                     break;
                 }
             }
         });
 
         Events::onMouseScroll.connect([this](const float yOffset) {
+            if (!m_viewportFocused || !m_viewportHovered) return;
+
             if (yOffset != 0.0f) {
-                if (m_cameraStyle == CameraStyle::Free) {
+                if (cameraStyle == CameraStyle::Free) {
                     if (Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
-                        m_movementSpeed = std::max(m_movementSpeed * (1.0f + 0.1f * yOffset), m_minMovementSpeed);
+                        movementSpeed = std::max(movementSpeed * (1.0f + 0.1f * yOffset), minMovementSpeed);
                     } else {
-                        m_position += getForwardVector() * (yOffset * m_scrollSensitivity);
+                        position += getForwardVector() * (yOffset * scrollSensitivity);
                     }
-                } else if (m_cameraStyle == CameraStyle::Orbit) {
-                    m_distance -= yOffset * m_distance * 0.1f * m_scrollSensitivity;
-                    if (m_distance < 0.1f) {
-                        m_focalPoint += getForwardVector();
-                        m_distance = 0.1f;
+                } else if (cameraStyle == CameraStyle::Orbit) {
+                    distance -= yOffset * distance * 0.1f * scrollSensitivity;
+                    if (distance < 0.1f) {
+                        focalPoint += getForwardVector();
+                        distance = 0.1f;
                     }
                     updateView();
                 }
@@ -80,20 +87,22 @@ namespace sfmeditor {
         });
 
         Events::onMouseMove.connect([this](const glm::vec2 delta, const glm::vec2 pos) {
+            if (!m_viewportFocused || !m_viewportHovered) return;
+
             if (Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
-                const float yawDelta = delta.x * m_mouseSensitivity;
-                const float pitchDelta = delta.y * m_mouseSensitivity;
+                const float yawDelta = delta.x * mouseSensitivity;
+                const float pitchDelta = delta.y * mouseSensitivity;
 
                 const glm::quat qPitch = glm::angleAxis(pitchDelta * -1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
                 const glm::quat qYaw = glm::angleAxis(yawDelta * -1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
 
-                m_orientation = qYaw * m_orientation * qPitch;
-                m_orientation = glm::normalize(m_orientation);
+                orientation = qYaw * orientation * qPitch;
+                orientation = glm::normalize(orientation);
 
                 updateView();
                 updateEulerAngles();
             } else if (Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_MIDDLE)) {
-                const float speedMultiplier = (m_cameraStyle == CameraStyle::Orbit) ? m_distance : m_movementSpeed;
+                const float speedMultiplier = (cameraStyle == CameraStyle::Orbit) ? distance : movementSpeed;
                 const float panSpeed = speedMultiplier * 0.002f;
 
                 const glm::vec3 right = getRightVector();
@@ -101,18 +110,21 @@ namespace sfmeditor {
 
                 const glm::vec3 translation = -(right * delta.x * panSpeed) + (up * delta.y * panSpeed);
 
-                m_position += translation;
-                m_focalPoint += translation;
+                position += translation;
+                focalPoint += translation;
 
                 updateView();
             }
         });
     }
 
-    void EditorCamera::onUpdate(const float dt, const bool allowInput) {
+    void EditorCamera::onUpdate(const float dt, const bool viewportFocused, const bool viewportHovered) {
+        m_viewportFocused = viewportFocused;
+        m_viewportHovered = viewportHovered;
+
         const bool isRightPressed = Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT);
 
-        if (allowInput && isRightPressed) {
+        if (m_viewportFocused && m_viewportHovered && isRightPressed) {
             if (glfwGetInputMode(g_nativeWindow, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
                 glfwSetInputMode(g_nativeWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
@@ -122,9 +134,9 @@ namespace sfmeditor {
             }
         }
 
-        if (allowInput && isRightPressed) {
-            if (m_cameraStyle == CameraStyle::Free) {
-                float velocity = m_movementSpeed * dt;
+        if (m_viewportFocused && m_viewportHovered && isRightPressed) {
+            if (cameraStyle == CameraStyle::Free) {
+                float velocity = movementSpeed * dt;
                 if (Input::isKeyPressed(SFM_KEY_LEFT_SHIFT)) velocity *= 3.0f;
                 if (Input::isKeyPressed(SFM_KEY_LEFT_ALT)) velocity *= 0.1f;
 
@@ -132,15 +144,15 @@ namespace sfmeditor {
                 const glm::vec3 right = getRightVector();
                 const glm::vec3 up = getUpVector();
 
-                if (Input::isKeyPressed(SFM_KEY_W)) m_position += forward * velocity;
-                if (Input::isKeyPressed(SFM_KEY_S)) m_position -= forward * velocity;
-                if (Input::isKeyPressed(SFM_KEY_A)) m_position -= right * velocity;
-                if (Input::isKeyPressed(SFM_KEY_D)) m_position += right * velocity;
+                if (Input::isKeyPressed(SFM_KEY_W)) position += forward * velocity;
+                if (Input::isKeyPressed(SFM_KEY_S)) position -= forward * velocity;
+                if (Input::isKeyPressed(SFM_KEY_A)) position -= right * velocity;
+                if (Input::isKeyPressed(SFM_KEY_D)) position += right * velocity;
 
-                if (Input::isKeyPressed(SFM_KEY_E)) m_position += up * velocity;
-                if (Input::isKeyPressed(SFM_KEY_Q)) m_position -= up * velocity;
+                if (Input::isKeyPressed(SFM_KEY_E)) position += up * velocity;
+                if (Input::isKeyPressed(SFM_KEY_Q)) position -= up * velocity;
 
-                m_focalPoint = m_position + (forward * m_distance);
+                focalPoint = position + (forward * distance);
             }
         }
 
@@ -155,89 +167,105 @@ namespace sfmeditor {
     }
 
     glm::vec3 EditorCamera::getForwardVector() const {
-        return glm::rotate(m_orientation, glm::vec3(0.0f, 0.0f, -1.0f));
+        return glm::rotate(orientation, glm::vec3(0.0f, 0.0f, -1.0f));
     }
 
     glm::vec3 EditorCamera::getRightVector() const {
-        return glm::rotate(m_orientation, glm::vec3(1.0f, 0.0f, 0.0f));
+        return glm::rotate(orientation, glm::vec3(1.0f, 0.0f, 0.0f));
     }
 
     glm::vec3 EditorCamera::getUpVector() const {
-        return glm::rotate(m_orientation, glm::vec3(0.0f, 1.0f, 0.0f));
+        return glm::rotate(orientation, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     void EditorCamera::updateProjection() {
-        if (m_projectionMode == ProjectionMode::Perspective) {
-            m_projection = glm::perspective(glm::radians(m_FOV), m_aspectRatio, m_nearClip, m_farClip);
+        if (projectionMode == ProjectionMode::Perspective) {
+            m_projection = glm::perspective(glm::radians(FOV), m_aspectRatio, m_nearClip, m_farClip);
         } else {
-            const float orthoLeft = -m_orthoSize * m_aspectRatio * 0.5f;
-            const float orthoRight = m_orthoSize * m_aspectRatio * 0.5f;
-            const float orthoBottom = -m_orthoSize * 0.5f;
-            const float orthoTop = m_orthoSize * 0.5f;
+            const float orthoLeft = -orthoSize * m_aspectRatio * 0.5f;
+            const float orthoRight = orthoSize * m_aspectRatio * 0.5f;
+            const float orthoBottom = -orthoSize * 0.5f;
+            const float orthoTop = orthoSize * 0.5f;
             m_projection = glm::ortho(orthoLeft, orthoRight, orthoBottom, orthoTop, m_nearClip, m_farClip);
         }
     }
 
     void EditorCamera::updateView() {
-        m_orientation = glm::normalize(m_orientation);
+        orientation = glm::normalize(orientation);
 
-        if (m_cameraStyle == CameraStyle::Orbit) {
-            m_position = m_focalPoint - (getForwardVector() * m_distance);
+        if (cameraStyle == CameraStyle::Orbit) {
+            position = focalPoint - (getForwardVector() * distance);
         }
 
-        const glm::mat4 translate = glm::translate(glm::mat4(1.0f), m_position);
-        const glm::mat4 rotate = glm::toMat4(m_orientation);
+        const glm::mat4 translate = glm::translate(glm::mat4(1.0f), position);
+        const glm::mat4 rotate = glm::toMat4(orientation);
         m_viewMatrix = glm::inverse(translate * rotate);
     }
 
     void EditorCamera::lookAt(const glm::vec3& target) {
-        m_focalPoint = target;
-        const glm::vec3 direction = glm::normalize(target - m_position);
-        m_orientation = glm::quatLookAt(direction, glm::vec3(0.0f, 1.0f, 0.0f));
+        focalPoint = target;
+        const glm::vec3 direction = glm::normalize(target - position);
+        orientation = glm::quatLookAt(direction, glm::vec3(0.0f, 1.0f, 0.0f));
         updateEulerAngles();
     }
 
     void EditorCamera::resetView() {
-        m_focalPoint = glm::vec3(0.0f);
-        m_distance = m_resetDistance;
-        m_position = m_focalPoint - (getForwardVector() * m_distance);
-        lookAt(m_focalPoint);
+        focalPoint = glm::vec3(0.0f);
+        distance = resetDistance;
+        position = focalPoint - (getForwardVector() * distance);
+        lookAt(focalPoint);
         Logger::info("Camera Focused to Origin");
     }
 
     void EditorCamera::setRotationFromUI() {
         const auto eulerRadians = glm::vec3(
-            glm::radians(m_pitch),
-            glm::radians(m_yaw),
-            glm::radians(m_roll)
+            glm::radians(pitch),
+            glm::radians(yaw),
+            glm::radians(roll)
         );
-        m_orientation = glm::quat(eulerRadians);
-        if (m_cameraStyle == CameraStyle::Orbit) {
-            m_position = m_focalPoint - (getForwardVector() * m_distance);
+        orientation = glm::quat(eulerRadians);
+        if (cameraStyle == CameraStyle::Orbit) {
+            position = focalPoint - (getForwardVector() * distance);
         }
         updateView();
     }
 
     void EditorCamera::setOrientationFromUI(const glm::quat& newQuat) {
-        m_orientation = glm::normalize(newQuat);
+        orientation = glm::normalize(newQuat);
         updateEulerAngles();
-        if (m_cameraStyle == CameraStyle::Orbit) {
-            m_position = m_focalPoint - (getForwardVector() * m_distance);
+        if (cameraStyle == CameraStyle::Orbit) {
+            position = focalPoint - (getForwardVector() * distance);
         }
         updateView();
     }
 
     void EditorCamera::setCameraStyle(const CameraStyle style) {
-        m_cameraStyle = style;
-        if (m_cameraStyle == CameraStyle::Orbit) {
-            m_distance = glm::distance(m_position, m_focalPoint);
+        cameraStyle = style;
+        if (cameraStyle == CameraStyle::Orbit) {
+            distance = glm::distance(position, focalPoint);
         }
     }
 
+    Ray EditorCamera::castRay(const float mouseX, const float mouseY, const float viewportWidth,
+                              const float viewportHeight) const {
+        const float x = (2.0f * mouseX) / viewportWidth - 1.0f;
+        const float y = 1.0f - (2.0f * mouseY) / viewportHeight;
+
+        const auto rayClip = glm::vec4(x, y, -1.0f, 1.0f);
+
+        glm::vec4 rayEye = glm::inverse(m_projection) * rayClip;
+        rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
+
+        auto rayWorld = glm::vec3(glm::inverse(m_viewMatrix) * rayEye);
+        rayWorld = glm::normalize(rayWorld);
+
+        return Ray{position, rayWorld};
+    }
+
     void EditorCamera::updateEulerAngles() {
-        const glm::vec3 euler = glm::eulerAngles(m_orientation);
-        m_pitch = glm::degrees(euler.x);
-        m_yaw = glm::degrees(euler.y);
-        m_roll = glm::degrees(euler.z);
+        const glm::vec3 euler = glm::eulerAngles(orientation);
+        pitch = glm::degrees(euler.x);
+        yaw = glm::degrees(euler.y);
+        roll = glm::degrees(euler.z);
     }
 }

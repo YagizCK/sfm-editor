@@ -21,6 +21,8 @@
 #include <imgui.h>
 #include <ImGuizmo.h>
 
+#include "Core/Types.hpp"
+
 
 namespace sfmeditor {
     enum class ProjectionMode {
@@ -37,33 +39,33 @@ namespace sfmeditor {
     public:
         EditorCamera();
 
-        ProjectionMode m_projectionMode = ProjectionMode::Perspective;
-        CameraStyle m_cameraStyle = CameraStyle::Free;
+        ProjectionMode projectionMode = ProjectionMode::Perspective;
+        CameraStyle cameraStyle = CameraStyle::Free;
 
-        glm::vec3 m_position = {0.0f, 0.0f, 0.0f};
-        glm::quat m_orientation = {1.0f, 0.0f, 0.0f, 0.0f};
-        float m_distance = 0.0f;
+        glm::vec3 position = {0.0f, 0.0f, 0.0f};
+        glm::quat orientation = {1.0f, 0.0f, 0.0f, 0.0f};
+        float distance = 0.0f;
 
-        glm::vec3 m_resetPosition = {5.0f, 5.0f, 5.0f};
-        glm::vec3 m_focalPoint = {0.0f, 0.0f, 0.0f};
-        float m_resetDistance = 10.0f;
+        glm::vec3 resetPosition = {5.0f, 5.0f, 5.0f};
+        glm::vec3 focalPoint = {0.0f, 0.0f, 0.0f};
+        float resetDistance = 10.0f;
 
-        float m_FOV = 103.0f;
-        float m_orthoSize = 170.0f;
+        float FOV = 103.0f;
+        float orthoSize = 170.0f;
 
-        float m_pitch = 0.0f;
-        float m_yaw = 0.0f;
-        float m_roll = 0.0f;
+        float pitch = 0.0f;
+        float yaw = 0.0f;
+        float roll = 0.0f;
 
-        float m_mouseSensitivity = 0.005f;
-        float m_scrollSensitivity = 2.0f;
+        float mouseSensitivity = 0.005f;
+        float scrollSensitivity = 2.0f;
 
-        float m_movementSpeed = 5.0f;
-        const float m_minMovementSpeed = 0.1f;
+        float movementSpeed = 5.0f;
+        const float minMovementSpeed = 0.1f;
 
-        int m_gizmoOperation = ImGuizmo::TRANSLATE;
+        int gizmoOperation = ImGuizmo::TRANSLATE;
 
-        void onUpdate(float dt, bool allowInput);
+        void onUpdate(float dt, bool viewportFocused, bool viewportHovered);
         void onResize(float width, float height);
 
         const glm::mat4& getViewMatrix() const { return m_viewMatrix; }
@@ -86,6 +88,8 @@ namespace sfmeditor {
 
         void setCameraStyle(CameraStyle style);
 
+        Ray castRay(float mouseX, float mouseY, float viewportWidth, float viewportHeight) const;
+
     private:
         void updateEulerAngles();
 
@@ -95,5 +99,8 @@ namespace sfmeditor {
 
         glm::mat4 m_viewMatrix = glm::mat4(1.0f);
         glm::mat4 m_projection = glm::mat4(1.0f);
+
+        bool m_viewportFocused = false;
+        bool m_viewportHovered = false;
     };
 }

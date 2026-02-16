@@ -174,8 +174,8 @@ namespace sfmeditor {
 
         ImGui::Image(textureID, viewportPanelSize, ImVec2(0, 1), ImVec2(1, 0));
 
-        if (camera && camera->m_gizmoOperation != -1) {
-            ImGuizmo::SetOrthographic(camera->m_projectionMode == ProjectionMode::Orthographic);
+        if (camera && camera->gizmoOperation != -1) {
+            ImGuizmo::SetOrthographic(camera->projectionMode == ProjectionMode::Orthographic);
             ImGuizmo::SetDrawlist();
             ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(),
                               ImGui::GetWindowHeight());
@@ -188,7 +188,7 @@ namespace sfmeditor {
             ImGuizmo::Manipulate(
                 glm::value_ptr(viewMatrix),
                 glm::value_ptr(projectionMatrix),
-                static_cast<ImGuizmo::OPERATION>(camera->m_gizmoOperation),
+                static_cast<ImGuizmo::OPERATION>(camera->gizmoOperation),
                 ImGuizmo::MODE::WORLD,
                 glm::value_ptr(testTransform)
             );
@@ -225,7 +225,7 @@ namespace sfmeditor {
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
             if (camera) {
-                if (camera->m_cameraStyle == CameraStyle::Free) {
+                if (camera->cameraStyle == CameraStyle::Free) {
                     ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[ FREE FLY MODE ]");
                     ImGui::Separator();
                     ImGui::Text("While Holding Right Click:");
@@ -239,22 +239,23 @@ namespace sfmeditor {
 
                     ImGui::Dummy(ImVec2(0.0f, 2.0f));
                     ImGui::Text("Zoom (Move): Scroll (No Click)");
-                } else if (camera->m_cameraStyle == CameraStyle::Orbit) {
+                } else if (camera->cameraStyle == CameraStyle::Orbit) {
                     ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "[ ORBIT MODE ]");
                     ImGui::Separator();
                     ImGui::BulletText("Zoom In/Out: Scroll");
 
                     ImGui::Dummy(ImVec2(0.0f, 2.0f));
-                    ImGui::TextDisabled("Distance: %.2f", camera->m_distance);
+                    ImGui::TextDisabled("Distance: %.2f", camera->distance);
                 }
             }
             ImGui::Separator();
             ImGui::Text("Gizmo Mode:");
-            ImGui::SameLine();
-            if (camera->m_gizmoOperation == 7) ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Move (W)");
-            if (camera->m_gizmoOperation == 120) ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Rotate (E)");
-            if (camera->m_gizmoOperation == 896) ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Scale (R)");
-            if (camera->m_gizmoOperation == -1) ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "None (Q)");
+            ImGui::Indent();
+            ImGui::Text("None: Q");
+            ImGui::Text("Move: W");
+            ImGui::Text("Rotate: E");
+            ImGui::Text("Scale: R");
+            ImGui::Unindent();
         }
         ImGui::End();
         ImGui::PopStyleVar(2);
@@ -281,22 +282,22 @@ namespace sfmeditor {
         }
 
         if (ImGui::CollapsingHeader("Camera Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::DragFloat3("Position", &camera->m_position.x, 0.1f);
+            ImGui::DragFloat3("Position", &camera->position.x, 0.1f);
 
             ImGui::Separator();
             ImGui::Text("Rotation (Euler)");
 
             bool eulerChanged = false;
-            if (ImGui::DragFloat("Pitch", &camera->m_pitch, 0.5f)) eulerChanged = true;
-            if (ImGui::DragFloat("Yaw", &camera->m_yaw, 0.5f)) eulerChanged = true;
-            if (ImGui::DragFloat("Roll", &camera->m_roll, 0.5f)) eulerChanged = true;
+            if (ImGui::DragFloat("Pitch", &camera->pitch, 0.5f)) eulerChanged = true;
+            if (ImGui::DragFloat("Yaw", &camera->yaw, 0.5f)) eulerChanged = true;
+            if (ImGui::DragFloat("Roll", &camera->roll, 0.5f)) eulerChanged = true;
 
             if (eulerChanged) camera->setRotationFromUI();
 
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
             ImGui::Text("Rotation (Quaternion)");
 
-            glm::quat currentQuat = camera->m_orientation;
+            glm::quat currentQuat = camera->orientation;
             if (ImGui::DragFloat4("X Y Z W", &currentQuat.x, 0.01f, -1.0f, 1.0f)) {
                 camera->setOrientationFromUI(currentQuat);
             }
@@ -310,7 +311,7 @@ namespace sfmeditor {
 
         if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
             const char* cameraStyleStrings[] = {"Free Look (Fly)", "Orbit (Turntable)"};
-            int currentStyle = static_cast<int>(camera->m_cameraStyle);
+            int currentStyle = static_cast<int>(camera->cameraStyle);
             if (ImGui::Combo("Camera Mode", &currentStyle, cameraStyleStrings, 2)) {
                 camera->setCameraStyle(static_cast<CameraStyle>(currentStyle));
             }
@@ -320,16 +321,16 @@ namespace sfmeditor {
             bool projectionChanged = false;
 
             const char* projectionTypeStrings[] = {"Perspective", "Orthographic"};
-            int currentProj = static_cast<int>(camera->m_projectionMode);
+            int currentProj = static_cast<int>(camera->projectionMode);
             if (ImGui::Combo("Projection", &currentProj, projectionTypeStrings, 2)) {
-                camera->m_projectionMode = static_cast<ProjectionMode>(currentProj);
+                camera->projectionMode = static_cast<ProjectionMode>(currentProj);
                 projectionChanged = true;
             }
 
-            if (camera->m_projectionMode == ProjectionMode::Perspective) {
-                if (ImGui::SliderFloat("FOV", &camera->m_FOV, 1.0f, 179.0f)) projectionChanged = true;
+            if (camera->projectionMode == ProjectionMode::Perspective) {
+                if (ImGui::SliderFloat("FOV", &camera->FOV, 1.0f, 179.0f)) projectionChanged = true;
             } else {
-                if (ImGui::DragFloat("Ortho Size", &camera->m_orthoSize, 0.1f, 0.1f, 1000.0f))
+                if (ImGui::DragFloat("Ortho Size", &camera->orthoSize, 0.1f, 0.1f, 1000.0f))
                     projectionChanged =
                         true;
             }
@@ -338,9 +339,9 @@ namespace sfmeditor {
 
             ImGui::Separator();
 
-            ImGui::DragFloat("Speed", &camera->m_movementSpeed, 0.1f, camera->m_minMovementSpeed, 500.0f);
-            ImGui::SliderFloat("Sensitivity", &camera->m_mouseSensitivity, 0.001f, 0.1f);
-            ImGui::SliderFloat("Scroll Sens.", &camera->m_scrollSensitivity, 0.1f, 50.0f);
+            ImGui::DragFloat("Speed", &camera->movementSpeed, 0.1f, camera->minMovementSpeed, 500.0f);
+            ImGui::SliderFloat("Sensitivity", &camera->mouseSensitivity, 0.001f, 0.1f);
+            ImGui::SliderFloat("Scroll Sens.", &camera->scrollSensitivity, 0.1f, 50.0f);
         }
 
         ImGui::End();

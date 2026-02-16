@@ -14,36 +14,9 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include <glm/vec3.hpp>
+#include "EditorSystem.h"
 
 namespace sfmeditor {
-    struct Point {
-        glm::vec3 position;
-        glm::vec3 color;
-    };
-
-    struct SceneProperties {
-        glm::vec3 backgroundColor = glm::vec3(0.1f, 0.1f, 0.1f);
-        bool showGrid = true;
-        bool showAxes = true;
-    };
-
-    struct Ray {
-        glm::vec3 origin;
-        glm::vec3 direction;
-    };
-
-    struct LineVertex {
-        glm::vec3 position;
-        glm::vec3 color;
-    };
-
-    struct LineData {
-        glm::vec3 start;
-        glm::vec3 end;
-        glm::vec3 color;
-        float lifetime;
-    };
+    void EditorSystem::init() {
+    }
 }

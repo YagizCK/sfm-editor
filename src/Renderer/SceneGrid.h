@@ -22,6 +22,8 @@
 #include <glm/glm.hpp>
 #include <memory>
 
+#include "EditorCamera.h"
+
 namespace sfmeditor {
     class SceneGrid {
     public:
@@ -32,8 +34,8 @@ namespace sfmeditor {
         SceneGrid(SceneGrid&&) = default;
         SceneGrid& operator=(SceneGrid&&) = default;
 
-        void draw(const std::unique_ptr<SceneProperties>& sceneProperties, const glm::mat4& view,
-                  const glm::mat4& projection, const glm::vec3& cameraPos) const;
+        void draw(const std::unique_ptr<SceneProperties>& sceneProperties,
+                  const std::unique_ptr<EditorCamera>& camera) const;
 
     private:
         uint32_t m_planeVAO = 0, m_planeVBO = 0, m_planeEBO = 0;
