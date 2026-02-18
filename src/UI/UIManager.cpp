@@ -120,7 +120,7 @@ namespace sfmeditor {
 
             ImGui::DockBuilderDockWindow("Viewport", dockMainID);
             ImGui::DockBuilderDockWindow("Properties", dockRightID);
-            ImGui::DockBuilderDockWindow("Console Log", dockBottomID);
+            ImGui::DockBuilderDockWindow("Logs", dockBottomID);
 
             ImGui::DockBuilderFinish(dockspaceID);
         }
@@ -157,48 +157,62 @@ namespace sfmeditor {
         }
     }
 
-    void UIManager::renderViewport(const uint32_t textureID, glm::vec2& outSize, bool& outHovered,
-                                   bool& outFocused, const EditorCamera* camera) {
+    void UIManager::renderViewport(const uint32_t textureID, ViewportInfo& viewportInfo, const EditorCamera* camera,
+                                   EditorSystem* editorSystem) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
         ImGui::Begin("Viewport");
 
-        outHovered = ImGui::IsWindowHovered();
-        if (outHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+        viewportInfo.hovered = ImGui::IsWindowHovered();
+        if (viewportInfo.hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
             ImGui::SetWindowFocus();
         }
-        outFocused = ImGui::IsWindowFocused();
+        viewportInfo.focused = ImGui::IsWindowFocused();
 
-        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-        outSize = {viewportPanelSize.x, viewportPanelSize.y};
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+        viewportInfo.size = {viewportSize.x, viewportSize.y};
 
-        ImGui::Image(textureID, viewportPanelSize, ImVec2(0, 1), ImVec2(1, 0));
+        ImVec2 viewportPos = ImGui::GetCursorScreenPos();
+        viewportInfo.position = {viewportPos.x, viewportPos.y};
 
-        if (camera && camera->gizmoOperation != -1) {
+        ImGui::Image(textureID, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+
+        if (editorSystem->boxSelecting) {
+            const glm::vec2 d = glm::abs(editorSystem->boxEnd - editorSystem->boxStart);
+
+            if (const float distSq = glm::dot(d, d); !(distSq < 9.0f)) {
+                ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+                const ImVec2 p1 = {viewportPos.x + editorSystem->boxStart.x, viewportPos.y + editorSystem->boxStart.y};
+                const ImVec2 p2 = {viewportPos.x + editorSystem->boxEnd.x, viewportPos.y + editorSystem->boxEnd.y};
+
+                drawList->AddRectFilled(p1, p2, IM_COL32(0, 150, 255, 50));
+                drawList->AddRect(p1, p2, IM_COL32(0, 150, 255, 255), 0.0f, 0, 1.0f);
+            }
+        }
+
+        if (editorSystem->hasSelection() && editorSystem->gizmoOperation != -1) {
             ImGuizmo::SetOrthographic(camera->projectionMode == ProjectionMode::Orthographic);
             ImGuizmo::SetDrawlist();
-            ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(),
-                              ImGui::GetWindowHeight());
+            ImGuizmo::SetRect(
+                viewportPos.x, viewportPos.y,
+                viewportSize.x, viewportSize.y
+            );
 
             glm::mat4 viewMatrix = camera->getViewMatrix();
             glm::mat4 projectionMatrix = camera->getProjection();
-
-            static glm::mat4 testTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
-
             ImGuizmo::Manipulate(
                 glm::value_ptr(viewMatrix),
                 glm::value_ptr(projectionMatrix),
-                static_cast<ImGuizmo::OPERATION>(camera->gizmoOperation),
+                static_cast<ImGuizmo::OPERATION>(editorSystem->gizmoOperation),
                 ImGuizmo::MODE::WORLD,
-                glm::value_ptr(testTransform)
+                glm::value_ptr(editorSystem->gizmoTransform)
             );
         }
 
         constexpr float distance = 15.0f;
-        const ImVec2 viewportPos = ImGui::GetWindowPos();
-        const ImVec2 viewportSize = ImGui::GetWindowSize();
 
-        const auto overlayPos = ImVec2(viewportPos.x + viewportSize.x - distance, viewportPos.y + distance + 25.0f);
+        const auto overlayPos = ImVec2(viewportPos.x + viewportSize.x - distance, viewportPos.y + distance);
         ImGui::SetNextWindowBgAlpha(0.5f);
         ImGui::SetNextWindowPos(overlayPos, ImGuiCond_Always, ImVec2(1.0f, 0.0f));
 
@@ -210,7 +224,8 @@ namespace sfmeditor {
             ImGuiWindowFlags_NoSavedSettings |
             ImGuiWindowFlags_NoFocusOnAppearing |
             ImGuiWindowFlags_NoNav |
-            ImGuiWindowFlags_NoMove;
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoMouseInputs;
 
         if (ImGui::Begin("##OverlayControls", nullptr, flags)) {
             ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "CONTROLS");
@@ -279,6 +294,7 @@ namespace sfmeditor {
             ImGui::ColorEdit3("Background", &sceneProperties->backgroundColor.x);
             ImGui::Checkbox("Show Grid", &sceneProperties->showGrid);
             ImGui::Checkbox("Show Axes", &sceneProperties->showAxes);
+            ImGui::DragFloat("Point Size", &sceneProperties->pointSize, 0.1f);
         }
 
         if (ImGui::CollapsingHeader("Camera Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -348,13 +364,12 @@ namespace sfmeditor {
     }
 
     void UIManager::renderConsole() {
-        ImGui::Begin("Console Log");
+        ImGui::Begin("Logs");
 
         if (ImGui::Button("Clear")) {
             Logger::clear();
         }
         ImGui::SameLine();
-        ImGui::TextDisabled("Logs: %d", static_cast<int>(Logger::getLogs().size()));
 
         ImGui::Separator();
 

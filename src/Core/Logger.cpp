@@ -22,7 +22,7 @@
 #include <iomanip>
 
 namespace sfmeditor {
-    std::vector<LogEntry> Logger::m_logs;
+    std::deque<LogEntry> Logger::m_logs;
 
     const std::string kReset = "\033[0m";
     const std::string kRed = "\033[31m";
@@ -54,21 +54,9 @@ namespace sfmeditor {
         std::string timeStr = currentDateTime();
 
         m_logs.emplace_back(level, message, timeStr);
+        if (m_logs.size() > 100) m_logs.pop_front();
 
-        switch (level) {
-        case LogLevel::Info:
-            std::cout << kGreen << "[INFO] " << message << kReset << "\n";
-            break;
-        case LogLevel::Warning:
-            std::cout << kYellow << "[WARN] " << message << kReset << "\n";
-            break;
-        case LogLevel::Error:
-            std::cerr << kRed << "[ERROR] " << message << kReset << "\n";
-            break;
-        case LogLevel::Critical:
-            std::cerr << kMagenta << "[CRITICAL] " << message << kReset << "\n";
-            break;
-        }
+        if (level == LogLevel::Critical) std::cerr << kMagenta << "[CRITICAL] " << message << kReset << "\n";
     }
 
     std::string Logger::currentDateTime() {

@@ -18,6 +18,8 @@
 
 #include <glm/vec2.hpp>
 
+#include "Types.hpp"
+
 struct GLFWwindow;
 
 namespace sfmeditor {
@@ -32,6 +34,10 @@ namespace sfmeditor {
         static glm::vec2 getMousePosition();
         static float getMouseX();
         static float getMouseY();
+
+        static glm::vec2 getVpRelativeMousePos(const ViewportInfo& viewportInfo);
+        static float getVpRelativeMousePosX(const ViewportInfo& viewportInfo);
+        static float getVpRelativeMousePosY(const ViewportInfo& viewportInfo);
 
         static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
         static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);

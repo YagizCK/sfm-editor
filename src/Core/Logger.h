@@ -17,7 +17,7 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <deque>
 #include <mutex>
 
 namespace sfmeditor {
@@ -43,13 +43,13 @@ namespace sfmeditor {
         static void error(const std::string& message);
         static void critical(const std::string& message);
 
-        static const std::vector<LogEntry>& getLogs() { return m_logs; }
+        static const std::deque<LogEntry>& getLogs() { return m_logs; }
         static void clear() { m_logs.clear(); }
 
     private:
         static void log(LogLevel level, const std::string& message);
         static std::string currentDateTime();
 
-        static std::vector<LogEntry> m_logs;
+        static std::deque<LogEntry> m_logs;
     };
 }

@@ -44,9 +44,9 @@ namespace sfmeditor {
     public:
         inline static Signal<int, int> onWindowResize;
 
-        inline static Signal<int, bool> onKey;
+        inline static Signal<int, int> onKey;
 
-        inline static Signal<int, bool> onMouseButton;
+        inline static Signal<int, int> onMouseButton;
 
         inline static Signal<glm::vec2, glm::vec2> onMouseMove;
 

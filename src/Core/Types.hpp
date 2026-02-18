@@ -17,17 +17,27 @@
 #pragma once
 
 #include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
 
 namespace sfmeditor {
+    struct ViewportInfo {
+        glm::vec2 size = {1.0f, 1.0f};
+        glm::vec2 position = {0.0f, 0.0f};
+        bool focused = false;
+        bool hovered = false;
+    };
+
     struct Point {
         glm::vec3 position;
         glm::vec3 color;
+        float selected = 0.0f;
     };
 
     struct SceneProperties {
         glm::vec3 backgroundColor = glm::vec3(0.1f, 0.1f, 0.1f);
         bool showGrid = true;
         bool showAxes = true;
+        float pointSize = 6.0f;
     };
 
     struct Ray {

@@ -39,34 +39,17 @@ namespace sfmeditor {
         updateProjection();
         updateEulerAngles();
 
-        Events::onKey.connect([this](const int key, const bool pressed) {
-            if (!m_viewportFocused) return;
-
-            if (!pressed) return;
-
-            if (m_viewportHovered && key == SFM_MOUSE_BUTTON_LEFT) {
-            }
+        Events::onKey.connect([this](const int key, const int action) {
+            if (!m_viewportInfo.focused) return;
+            if (action != SFM_PRESS) return;
 
             if (key == SFM_KEY_F) {
                 resetView();
             }
-
-            if (!Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
-                switch (key) {
-                case SFM_KEY_Q: gizmoOperation = -1;
-                    break;
-                case SFM_KEY_W: gizmoOperation = ImGuizmo::TRANSLATE;
-                    break;
-                case SFM_KEY_E: gizmoOperation = ImGuizmo::ROTATE;
-                    break;
-                case SFM_KEY_R: gizmoOperation = ImGuizmo::SCALE;
-                    break;
-                }
-            }
         });
 
         Events::onMouseScroll.connect([this](const float yOffset) {
-            if (!m_viewportFocused || !m_viewportHovered) return;
+            if (!m_viewportInfo.focused || !m_viewportInfo.hovered) return;
 
             if (yOffset != 0.0f) {
                 if (cameraStyle == CameraStyle::Free) {
@@ -87,7 +70,7 @@ namespace sfmeditor {
         });
 
         Events::onMouseMove.connect([this](const glm::vec2 delta, const glm::vec2 pos) {
-            if (!m_viewportFocused || !m_viewportHovered) return;
+            if (!m_viewportInfo.focused || !m_viewportInfo.hovered) return;
 
             if (Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
                 const float yawDelta = delta.x * mouseSensitivity;
@@ -118,23 +101,14 @@ namespace sfmeditor {
         });
     }
 
-    void EditorCamera::onUpdate(const float dt, const bool viewportFocused, const bool viewportHovered) {
-        m_viewportFocused = viewportFocused;
-        m_viewportHovered = viewportHovered;
+    void EditorCamera::onUpdate(const float dt, const ViewportInfo& viewportInfo) {
+        m_viewportInfo = viewportInfo;
 
-        const bool isRightPressed = Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT);
-
-        if (m_viewportFocused && m_viewportHovered && isRightPressed) {
+        if (m_viewportInfo.focused && m_viewportInfo.hovered && Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
             if (glfwGetInputMode(g_nativeWindow, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
                 glfwSetInputMode(g_nativeWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
-        } else {
-            if (glfwGetInputMode(g_nativeWindow, GLFW_CURSOR) != GLFW_CURSOR_NORMAL) {
-                glfwSetInputMode(g_nativeWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            }
-        }
 
-        if (m_viewportFocused && m_viewportHovered && isRightPressed) {
             if (cameraStyle == CameraStyle::Free) {
                 float velocity = movementSpeed * dt;
                 if (Input::isKeyPressed(SFM_KEY_LEFT_SHIFT)) velocity *= 3.0f;
@@ -153,6 +127,10 @@ namespace sfmeditor {
                 if (Input::isKeyPressed(SFM_KEY_Q)) position -= up * velocity;
 
                 focalPoint = position + (forward * distance);
+            }
+        } else {
+            if (glfwGetInputMode(g_nativeWindow, GLFW_CURSOR) != GLFW_CURSOR_NORMAL) {
+                glfwSetInputMode(g_nativeWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
             }
         }
 

@@ -163,3 +163,9 @@
 #define SFM_MOUSE_BUTTON_LEFT      SFM_MOUSE_BUTTON_1
 #define SFM_MOUSE_BUTTON_RIGHT     SFM_MOUSE_BUTTON_2
 #define SFM_MOUSE_BUTTON_MIDDLE    SFM_MOUSE_BUTTON_3
+
+
+// Action types
+#define SFM_RELEASE                0
+#define SFM_PRESS                  1
+#define SFM_REPEAT                 2

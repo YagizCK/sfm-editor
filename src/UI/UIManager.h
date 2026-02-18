@@ -17,11 +17,11 @@
 #pragma once
 
 #include "Core/Types.hpp"
+#include "Core/EditorSystem.h"
 
 #include <functional>
 #include <cstdint>
 #include <memory>
-#include <glm/vec2.hpp>
 
 
 namespace sfmeditor {
@@ -43,8 +43,8 @@ namespace sfmeditor {
         void renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
                                const std::function<void()>& onExit);
 
-        void renderViewport(uint32_t textureID, glm::vec2& outSize, bool& outHovered, bool& outFocused,
-                            const EditorCamera* camera);
+        void renderViewport(uint32_t textureID, ViewportInfo& viewportInfo, const EditorCamera* camera,
+                            EditorSystem* editorSystem);
 
         void renderInfoPanel(const std::unique_ptr<SceneProperties>& sceneProperties,
                              const std::unique_ptr<EditorCamera>& camera, int pointCount);

@@ -63,9 +63,7 @@ namespace sfmeditor {
         float movementSpeed = 5.0f;
         const float minMovementSpeed = 0.1f;
 
-        int gizmoOperation = ImGuizmo::TRANSLATE;
-
-        void onUpdate(float dt, bool viewportFocused, bool viewportHovered);
+        void onUpdate(float dt, const ViewportInfo& viewportInfo);
         void onResize(float width, float height);
 
         const glm::mat4& getViewMatrix() const { return m_viewMatrix; }
@@ -100,7 +98,6 @@ namespace sfmeditor {
         glm::mat4 m_viewMatrix = glm::mat4(1.0f);
         glm::mat4 m_projection = glm::mat4(1.0f);
 
-        bool m_viewportFocused = false;
-        bool m_viewportHovered = false;
+        ViewportInfo m_viewportInfo;
     };
 }

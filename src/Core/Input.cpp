@@ -18,9 +18,11 @@
 
 #include "Application.h"
 #include "Events.hpp"
+#include "KeyCodes.hpp"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
 
 namespace sfmeditor {
     glm::vec2 Input::m_lastMousePos = {0.0f, 0.0f};
@@ -31,12 +33,12 @@ namespace sfmeditor {
 
     bool Input::isKeyPressed(const int keycode) {
         const auto state = glfwGetKey(g_nativeWindow, keycode);
-        return state == GLFW_PRESS || state == GLFW_REPEAT;
+        return state == SFM_PRESS || state == SFM_REPEAT;
     }
 
     bool Input::isMouseButtonPressed(const int button) {
         const auto state = glfwGetMouseButton(g_nativeWindow, button);
-        return state == GLFW_PRESS;
+        return state == SFM_PRESS;
     }
 
     glm::vec2 Input::getMousePosition() {
@@ -53,17 +55,24 @@ namespace sfmeditor {
         return getMousePosition().y;
     }
 
-    void Input::keyCallback(GLFWwindow* window, const int key, const int scancode, const int action, const int mods) {
-        const bool pressed = (action == GLFW_PRESS);
-        const bool released = (action == GLFW_RELEASE);
+    glm::vec2 Input::getVpRelativeMousePos(const ViewportInfo& viewportInfo) {
+        return getMousePosition() - viewportInfo.position;
+    }
 
-        Events::onKey.emit(key, pressed);
+    float Input::getVpRelativeMousePosX(const ViewportInfo& viewportInfo) {
+        return getMouseX() - viewportInfo.position.x;
+    }
+
+    float Input::getVpRelativeMousePosY(const ViewportInfo& viewportInfo) {
+        return getMouseY() - viewportInfo.position.y;
+    }
+
+    void Input::keyCallback(GLFWwindow* window, const int key, const int scancode, const int action, const int mods) {
+        Events::onKey.emit(key, action);
     }
 
     void Input::mouseButtonCallback(GLFWwindow* window, const int button, const int action, const int mods) {
-        const bool pressed = (action == GLFW_PRESS);
-
-        Events::onMouseButton.emit(button, pressed);
+        Events::onMouseButton.emit(button, action);
     }
 
     void Input::cursorPosCallback(GLFWwindow* window, const double xPos, const double yPos) {

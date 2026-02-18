@@ -2,14 +2,23 @@
 
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aColor;
-
-out vec3 vColor;
+layout (location = 2) in float aSelected;
 
 uniform mat4 u_ViewProjection;
+uniform float u_PointSize;
+
+out vec3 vColor;
+out float vSelected;
 
 void main() {
-    gl_Position = u_ViewProjection * vec4(aPos, 1.0);
     vColor = aColor;
-    
-    gl_PointSize = 4.0; 
+    vSelected = aSelected;
+
+    if (aSelected > 0.5) {
+        gl_PointSize = u_PointSize * 2.5; 
+    } else {
+        gl_PointSize = u_PointSize;
+    }
+
+    gl_Position = u_ViewProjection * vec4(aPos, 1.0);
 }

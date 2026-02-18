@@ -16,9 +16,46 @@
 
 #pragma once
 
+#include "Renderer/EditorCamera.h"
+#include "Renderer/LineRenderer.h"
+
+
 namespace sfmeditor {
     class EditorSystem {
     public:
-        void init();
+        EditorSystem(EditorCamera* camera, LineRenderer* lineRenderer, std::vector<Point>* points);
+
+        void onUpdate(const ViewportInfo& viewportInfo);
+
+        bool hasSelection() const;
+
+        void clearSelection();
+
+        int gizmoOperation = ImGuizmo::TRANSLATE;
+
+        glm::mat4 gizmoTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
+
+        glm::vec3 gizmoStartPosition = {0.0f, 0.0f, 0.0f};
+
+        std::vector<unsigned int> selectedPointIndices;
+
+        glm::vec2 boxStart = {0.0f, 0.0f};
+        glm::vec2 boxEnd = {0.0f, 0.0f};
+        bool boxSelecting = false;
+
+        bool pendingSelection = false;
+        bool pendingDeletion = false;
+
+    private:
+        bool projectToViewport(const glm::vec3& worldPos, glm::vec2& outScreenPos) const;
+
+        int getClosestPointIdx(float maxDistanceSq);
+
+        EditorCamera* m_camera;
+        LineRenderer* m_lineRenderer;
+
+        ViewportInfo m_viewportInfo;
+
+        std::vector<Point>* m_points;
     };
 }

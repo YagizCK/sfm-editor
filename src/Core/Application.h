@@ -24,10 +24,12 @@
 #include "Renderer/LineRenderer.h"
 #include "Types.hpp"
 #include "Window.h"
+#include "EditorSystem.h"
 
 #include <memory>
 #include <vector>
 #include <glm/glm.hpp>
+
 
 namespace sfmeditor {
     extern GLFWwindow* g_nativeWindow;
@@ -60,9 +62,10 @@ namespace sfmeditor {
         std::unique_ptr<SceneProperties> m_sceneProperties;
         std::unique_ptr<Shader> m_pointShader;
         std::unique_ptr<Framebuffer> m_framebuffer;
-        std::unique_ptr<EditorCamera> m_camera;
         std::unique_ptr<SceneGrid> m_grid;
         std::unique_ptr<LineRenderer> m_lineRenderer;
+        std::unique_ptr<EditorCamera> m_camera;
+        std::unique_ptr<EditorSystem> m_editorSystem;
 
         bool m_running = true;
 

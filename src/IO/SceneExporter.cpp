@@ -46,14 +46,14 @@ namespace sfmeditor {
 
         uint64_t idCounter = 1;
 
-        for (const auto& [position, color] : points) {
+        for (const auto& p : points) {
             uint64_t id = idCounter++;
             const double xyz[3] = {
-                static_cast<double>(position.x), static_cast<double>(position.y), static_cast<double>(position.z)
+                static_cast<double>(p.position.x), static_cast<double>(p.position.y), static_cast<double>(p.position.z)
             };
             const uint8_t rgb[3] = {
-                static_cast<uint8_t>(color.r * 255), static_cast<uint8_t>(color.g * 255),
-                static_cast<uint8_t>(color.b * 255)
+                static_cast<uint8_t>(p.color.r * 255), static_cast<uint8_t>(p.color.g * 255),
+                static_cast<uint8_t>(p.color.b * 255)
             };
             double error = 0.0;
             uint64_t trackLength = 0;
@@ -85,11 +85,11 @@ namespace sfmeditor {
         out << "property uchar blue\n";
         out << "end_header\n";
 
-        for (const auto& [position, color] : points) {
-            out << position.x << " " << position.y << " " << position.z << " "
-                << static_cast<int>(color.r * 255) << " "
-                << static_cast<int>(color.g * 255) << " "
-                << static_cast<int>(color.b * 255) << "\n";
+        for (const auto& p : points) {
+            out << p.position.x << " " << p.position.y << " " << p.position.z << " "
+                << static_cast<int>(p.color.r * 255) << " "
+                << static_cast<int>(p.color.g * 255) << " "
+                << static_cast<int>(p.color.b * 255) << "\n";
         }
         Logger::info("Exported PLY: " + filepath);
         return true;
@@ -99,9 +99,9 @@ namespace sfmeditor {
         std::ofstream out(filepath);
         if (!out) return false;
         out << "# SFM Editor Export\n";
-        for (const auto& [position, color] : points) {
-            out << "v " << position.x << " " << position.y << " " << position.z << " "
-                << color.r << " " << color.g << " " << color.b << "\n";
+        for (const auto& p : points) {
+            out << "v " << p.position.x << " " << p.position.y << " " << p.position.z << " "
+                << p.color.r << " " << p.color.g << " " << p.color.b << "\n";
         }
         Logger::info("Exported OBJ: " + filepath);
         return true;
@@ -110,11 +110,11 @@ namespace sfmeditor {
     bool SceneExporter::exportXYZ(const std::string& filepath, const std::vector<Point>& points) {
         std::ofstream out(filepath);
         if (!out) return false;
-        for (const auto& [position, color] : points) {
-            out << position.x << " " << position.y << " " << position.z << " "
-                << static_cast<int>(color.r * 255) << " "
-                << static_cast<int>(color.g * 255) << " "
-                << static_cast<int>(color.b * 255) << "\n";
+        for (const auto& p : points) {
+            out << p.position.x << " " << p.position.y << " " << p.position.z << " "
+                << static_cast<int>(p.color.r * 255) << " "
+                << static_cast<int>(p.color.g * 255) << " "
+                << static_cast<int>(p.color.b * 255) << "\n";
         }
         Logger::info("Exported XYZ: " + filepath);
         return true;
