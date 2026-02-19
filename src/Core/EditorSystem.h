@@ -31,6 +31,8 @@ namespace sfmeditor {
 
         void clearSelection();
 
+        void resetState();
+
         int gizmoOperation = ImGuizmo::TRANSLATE;
 
         glm::mat4 gizmoTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
@@ -42,6 +44,8 @@ namespace sfmeditor {
         glm::vec2 boxStart = {0.0f, 0.0f};
         glm::vec2 boxEnd = {0.0f, 0.0f};
         bool boxSelecting = false;
+
+        std::vector<unsigned int> changedIndices;
 
         bool pendingSelection = false;
         bool pendingDeletion = false;

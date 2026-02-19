@@ -294,7 +294,7 @@ namespace sfmeditor {
             ImGui::ColorEdit3("Background", &sceneProperties->backgroundColor.x);
             ImGui::Checkbox("Show Grid", &sceneProperties->showGrid);
             ImGui::Checkbox("Show Axes", &sceneProperties->showAxes);
-            ImGui::DragFloat("Point Size", &sceneProperties->pointSize, 0.1f);
+            ImGui::DragFloat("Point Size", &sceneProperties->pointSize, 0.1f, 0.1f, 100.0f);
         }
 
         if (ImGui::CollapsingHeader("Camera Transform", ImGuiTreeNodeFlags_DefaultOpen)) {

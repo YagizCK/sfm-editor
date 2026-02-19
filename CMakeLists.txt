@@ -84,8 +84,28 @@ if(MSVC)
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE")
 endif()
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/res/assets
-    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets
-)
+if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set(TARGET_DIR "${CMAKE_BINARY_DIR}")
+else()
+    set(TARGET_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+endif()
+
+file(MAKE_DIRECTORY "${TARGET_DIR}")
+
+if(NOT EXISTS "${TARGET_DIR}/assets")
+    message(STATUS "Asset junction olusturuluyor: ${TARGET_DIR}/assets")
+
+    file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/res/assets" SRC_PATH)
+    file(TO_NATIVE_PATH "${TARGET_DIR}/assets" DST_PATH)
+
+    execute_process(
+        COMMAND cmd /c mklink /J "${DST_PATH}" "${SRC_PATH}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        RESULT_VARIABLE link_result
+        ERROR_VARIABLE link_error
+    )
+
+    if(NOT link_result EQUAL 0)
+        message(WARNING "Link olusturulamadi! Hata: ${link_error}")
+    endif()
+endif()

@@ -22,16 +22,15 @@
 #include "Logger.h"
 #include "Input.h"
 #include "Events.hpp"
+#include "KeyCodes.hpp"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <imgui.h>
 #include <random>
 #include <glm/gtc/type_ptr.hpp>
 #include <format>
+#include <imgui.h>
 #include <ImGuizmo.h>
-
-#include "KeyCodes.hpp"
 
 
 namespace sfmeditor {
@@ -51,7 +50,7 @@ namespace sfmeditor {
 
         m_uiManager = std::make_unique<UIManager>(m_window.get());
         m_sceneProperties = std::make_unique<SceneProperties>();
-        m_pointShader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+        m_renderer = std::make_unique<SceneRenderer>();
         m_framebuffer = std::make_unique<Framebuffer>(1600, 900);
         m_grid = std::make_unique<SceneGrid>();
         m_lineRenderer = std::make_unique<LineRenderer>();
@@ -67,10 +66,6 @@ namespace sfmeditor {
     }
 
     Application::~Application() {
-        if (m_VAO)
-            glDeleteVertexArrays(1, &m_VAO);
-        if (m_VBO)
-            glDeleteBuffers(1, &m_VBO);
     }
 
     void Application::run() {
@@ -88,51 +83,13 @@ namespace sfmeditor {
                 m_camera->onResize(m_viewportSize.x, m_viewportSize.y);
             }
 
-            glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+            // GPU Sync
+            m_renderer->updateBuffers(m_points, m_editorSystem.get());
 
-            if (m_editorSystem->pendingSelection) {
-                m_editorSystem->pendingSelection = false;
-
-                glBufferSubData(GL_ARRAY_BUFFER, 0, m_points.size() * sizeof(Point), m_points.data());
-            }
-
-            if (m_editorSystem->hasSelection()) {
-                const auto& selected = m_editorSystem->selectedPointIndices;
-                const unsigned int selectionCount = static_cast<unsigned int>(selected.size());
-
-                const auto deltaPos = glm::vec3(m_editorSystem->gizmoTransform[3]) - m_editorSystem->gizmoStartPosition;
-                if (glm::dot(deltaPos, deltaPos) > 0.0f) {
-                    for (const unsigned int idx : selected) {
-                        const glm::vec3 newPos = m_points[idx].position + deltaPos;
-                        m_points[idx].position = newPos;
-                        glBufferSubData(GL_ARRAY_BUFFER, idx * sizeof(Point), sizeof(glm::vec3), &newPos);
-                    }
-                    m_editorSystem->gizmoStartPosition = glm::vec3(m_editorSystem->gizmoTransform[3]);
-                }
-
-                if (m_editorSystem->pendingDeletion) {
-                    m_editorSystem->pendingDeletion = false;
-
-                    std::erase_if(m_points, [](const Point& p) {
-                        return p.selected > 0.5f;
-                    });
-
-                    glBufferData(GL_ARRAY_BUFFER, m_points.size() * sizeof(Point), m_points.data(), GL_STATIC_DRAW);
-
-                    m_editorSystem->selectedPointIndices.clear();
-
-                    Logger::info(std::to_string(selectionCount) + " points deleted.");
-                }
-            }
-
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+            // System Updates
             m_lineRenderer->onUpdate(m_deltaTime);
-
             viewportInfo.hovered = viewportInfo.hovered && !ImGuizmo::IsUsing();
-
             m_editorSystem->onUpdate(viewportInfo);
-
             m_camera->onUpdate(m_deltaTime, viewportInfo);
 
             // Render Pass
@@ -144,7 +101,11 @@ namespace sfmeditor {
                 1.0f
             );
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            renderScene();
+
+            m_grid->draw(m_sceneProperties, m_camera);
+            m_lineRenderer->draw(m_camera);
+            m_renderer->render(m_points, m_sceneProperties.get(), m_camera.get());
+
             m_framebuffer->unbind();
 
             // UI Pass
@@ -165,24 +126,6 @@ namespace sfmeditor {
 
             m_window->onUpdate();
         }
-    }
-
-    void Application::renderScene() const {
-        m_grid->draw(m_sceneProperties, m_camera);
-
-        m_lineRenderer->draw(m_camera);
-
-        if (m_points.empty()) return;
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        m_pointShader->bind();
-        m_pointShader->setFloat("u_PointSize", m_sceneProperties->pointSize);
-        m_pointShader->setMat4("u_ViewProjection", m_camera->getViewProjection());
-        glBindVertexArray(m_VAO);
-        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_points.size()));
-        m_pointShader->unbind();
-        glDisable(GL_BLEND);
     }
 
     void Application::onImportMap() {
@@ -210,35 +153,8 @@ namespace sfmeditor {
         }
 
         m_points = newPoints;
-
-        if (m_VAO) {
-            glDeleteVertexArrays(1, &m_VAO);
-            m_VAO = 0;
-        }
-        if (m_VBO) {
-            glDeleteBuffers(1, &m_VBO);
-            m_VBO = 0;
-        }
-
-        glCreateVertexArrays(1, &m_VAO);
-        glCreateBuffers(1, &m_VBO);
-
-        glBindVertexArray(m_VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-
-        glBufferData(GL_ARRAY_BUFFER, m_points.size() * sizeof(Point), m_points.data(), GL_STATIC_DRAW);
-
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), nullptr);
-
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Point),
-                              reinterpret_cast<const void*>(offsetof(Point, color)));
-
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Point),
-                              reinterpret_cast<const void*>(offsetof(Point, selected)));
-
+        m_editorSystem->resetState();
+        m_renderer->initBuffers(m_points);
         Logger::info("Successfully loaded " + std::to_string(m_points.size()) + " points.");
     }
 

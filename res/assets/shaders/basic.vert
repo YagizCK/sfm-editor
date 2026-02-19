@@ -15,7 +15,7 @@ void main() {
     vSelected = aSelected;
 
     if (aSelected > 0.5) {
-        gl_PointSize = u_PointSize * 2.5; 
+        gl_PointSize = u_PointSize * 1.5; 
     } else {
         gl_PointSize = u_PointSize;
     }

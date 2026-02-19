@@ -46,6 +46,7 @@ namespace sfmeditor {
                         if (const int closestIdx = getClosestPointIdx(36.0f); closestIdx != -1) {
                             selectedPointIndices.push_back(static_cast<unsigned int>(closestIdx));
                             (*m_points)[closestIdx].selected = 1.0f;
+                            changedIndices.push_back(closestIdx);
 
                             Logger::info("1 point selected.");
                         }
@@ -70,16 +71,24 @@ namespace sfmeditor {
                             if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
                                 selectedPointIndices.push_back(i);
                                 (*m_points)[i].selected = 1.0f;
+                                changedIndices.push_back(i);
                             }
                         }
 
-                        if (hasSelection()) Logger::info(
-                            std::to_string(selectedPointIndices.size()) + " points selected.");
+                        if (hasSelection())
+                            Logger::info(
+                                std::to_string(selectedPointIndices.size()) + " points selected.");
                     }
 
                     if (hasSelection()) {
-                        gizmoTransform = glm::translate(glm::mat4(1.0f),
-                                                        m_points->at(selectedPointIndices.back()).position);
+                        glm::vec3 center(0.0f);
+                        for (const unsigned int idx : selectedPointIndices) {
+                            center += (*m_points)[idx].position;
+                        }
+                        center /= static_cast<float>(selectedPointIndices.size());
+
+                        gizmoTransform = glm::translate(glm::mat4(1.0f), center);
+
                         gizmoStartPosition = glm::vec3(gizmoTransform[3]);
                     }
 
@@ -123,9 +132,20 @@ namespace sfmeditor {
 
     void EditorSystem::clearSelection() {
         for (const unsigned int idx : selectedPointIndices) {
-            if (m_points->size() > idx) (*m_points)[idx].selected = 0.0f;
+            if (m_points->size() > idx) {
+                (*m_points)[idx].selected = 0.0f;
+                changedIndices.push_back(idx);
+            }
         }
         selectedPointIndices.clear();
+    }
+
+    void EditorSystem::resetState() {
+        boxSelecting = false;
+        pendingSelection = false;
+        pendingDeletion = false;
+        selectedPointIndices.clear();
+        changedIndices.clear();
     }
 
     bool EditorSystem::projectToViewport(const glm::vec3& worldPos, glm::vec2& outScreenPos) const {

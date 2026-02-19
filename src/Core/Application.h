@@ -19,7 +19,7 @@
 #include "UI/UIManager.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/EditorCamera.h"
-#include "Renderer/Shader.h"
+#include "Renderer/SceneRenderer.h"
 #include "Renderer/SceneGrid.h"
 #include "Renderer/LineRenderer.h"
 #include "Types.hpp"
@@ -48,7 +48,6 @@ namespace sfmeditor {
         float getDeltaTime() const { return m_deltaTime; }
 
     private:
-        void renderScene() const;
         void onImportMap();
         void loadMap(const std::string& filepath);
         void onSaveMap() const;
@@ -60,7 +59,7 @@ namespace sfmeditor {
         std::unique_ptr<Window> m_window;
         std::unique_ptr<UIManager> m_uiManager;
         std::unique_ptr<SceneProperties> m_sceneProperties;
-        std::unique_ptr<Shader> m_pointShader;
+        std::unique_ptr<SceneRenderer> m_renderer;
         std::unique_ptr<Framebuffer> m_framebuffer;
         std::unique_ptr<SceneGrid> m_grid;
         std::unique_ptr<LineRenderer> m_lineRenderer;
@@ -70,7 +69,6 @@ namespace sfmeditor {
         bool m_running = true;
 
         std::vector<Point> m_points;
-        uint32_t m_VAO = 0, m_VBO = 0;
 
         glm::vec2 m_viewportSize = {0.0f, 0.0f};
         glm::vec2 m_lastViewportSize = {0.0f, 0.0f};
