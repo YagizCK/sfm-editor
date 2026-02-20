@@ -73,14 +73,14 @@ namespace sfmeditor {
         glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 
         const size_t totalPoints = points.size();
-        const float threshold = totalPoints * 0.1f;
+        const float threshold = totalPoints * m_thresholdFactor;
 
         if (editorSystem->pendingSelection) {
             editorSystem->pendingSelection = false;
             auto& changed = editorSystem->changedIndices;
             if (!changed.empty()) {
                 if (changed.size() < threshold) {
-                    for (unsigned int idx : changed) {
+                    for (const unsigned int idx : changed) {
                         const size_t offset = (idx * sizeof(Point)) + offsetof(Point, selected);
                         glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(float), &points[idx].selected);
                     }
@@ -95,9 +95,27 @@ namespace sfmeditor {
             const auto& selected = editorSystem->selectedPointIndices;
             const size_t selectionCount = selected.size();
 
-            const auto deltaPos = glm::vec3(editorSystem->gizmoTransform[3]) - editorSystem->gizmoStartPosition;
-            if (glm::dot(deltaPos, deltaPos) > 1e-6f) {
-                for (const unsigned int idx : selected) points[idx].position += deltaPos;
+            const glm::mat4 currentTransform = editorSystem->gizmoTransform;
+            const glm::mat4 lastTransform = editorSystem->gizmoLastTransform;
+
+            bool isMatrixChanged = false;
+            for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    if (std::abs(currentTransform[i][j] - lastTransform[i][j]) > 1e-5f) {
+                        isMatrixChanged = true;
+                        break;
+                    }
+                }
+                if (isMatrixChanged) break;
+            }
+
+            if (isMatrixChanged) {
+                const glm::mat4 deltaTransform = currentTransform * glm::inverse(lastTransform);
+
+                for (const unsigned int idx : selected) {
+                    const auto pos = glm::vec4(points[idx].position, 1.0f);
+                    points[idx].position = glm::vec3(deltaTransform * pos);
+                }
 
                 if (selectionCount < threshold) {
                     for (const unsigned int idx : selected) {
@@ -106,7 +124,8 @@ namespace sfmeditor {
                 } else {
                     glBufferSubData(GL_ARRAY_BUFFER, 0, totalPoints * sizeof(Point), points.data());
                 }
-                editorSystem->gizmoStartPosition = glm::vec3(editorSystem->gizmoTransform[3]);
+
+                editorSystem->gizmoLastTransform = currentTransform;
             }
 
             if (editorSystem->pendingDeletion) {

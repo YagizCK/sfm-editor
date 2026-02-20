@@ -28,9 +28,12 @@ namespace sfmeditor {
         Events::onMouseButton.connect([this](const int button, const int action) {
             if (!m_viewportInfo.focused || !m_viewportInfo.hovered) return;
 
-            if (!ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && button == SFM_MOUSE_BUTTON_LEFT) {
-                if (action == SFM_PRESS) {
-                    clearSelection();
+            if (!ImGuizmo::IsUsing() && button == SFM_MOUSE_BUTTON_LEFT) {
+                if (!ImGuizmo::IsOver() && action == SFM_PRESS) {
+                    if (!Input::isKeyPressed(SFM_KEY_LEFT_CONTROL)) {
+                        clearSelection();
+                    }
+
                     pendingSelection = true;
 
                     boxSelecting = true;
@@ -44,11 +47,14 @@ namespace sfmeditor {
 
                     if (const float distSq = glm::dot(d, d); distSq < 9.0f) {
                         if (const int closestIdx = getClosestPointIdx(36.0f); closestIdx != -1) {
-                            selectedPointIndices.push_back(static_cast<unsigned int>(closestIdx));
-                            (*m_points)[closestIdx].selected = 1.0f;
-                            changedIndices.push_back(closestIdx);
-
-                            Logger::info("1 point selected.");
+                            if (Input::isKeyPressed(SFM_KEY_LEFT_CONTROL) && (*m_points)[closestIdx].selected > 0.5f) {
+                                (*m_points)[closestIdx].selected = 0.0f;
+                                changedIndices.push_back(closestIdx);
+                            } else if ((*m_points)[closestIdx].selected < 0.5f) {
+                                selectedPointIndices.push_back(static_cast<unsigned int>(closestIdx));
+                                (*m_points)[closestIdx].selected = 1.0f;
+                                changedIndices.push_back(closestIdx);
+                            }
                         }
                     } else {
                         const float minX = std::min(boxStart.x, boxEnd.x);
@@ -57,6 +63,7 @@ namespace sfmeditor {
                         const float maxY = std::max(boxStart.y, boxEnd.y);
 
                         const glm::mat4 vp = m_camera->getViewProjection();
+                        const bool isCtrlPressed = Input::isKeyPressed(SFM_KEY_LEFT_CONTROL);
 
                         for (int i = 0; i < std::ssize(*m_points); ++i) {
                             glm::vec4 clipPos = vp * glm::vec4((*m_points)[i].position, 1.0f);
@@ -69,18 +76,21 @@ namespace sfmeditor {
                             const float screenY = (1.0f - ndc.y) * 0.5f * m_viewportInfo.size.y;
 
                             if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
-                                selectedPointIndices.push_back(i);
-                                (*m_points)[i].selected = 1.0f;
-                                changedIndices.push_back(i);
+                                if (isCtrlPressed && (*m_points)[i].selected > 0.5f) {
+                                    (*m_points)[i].selected = 0.0f;
+                                    changedIndices.push_back(i);
+                                } else if ((*m_points)[i].selected < 0.5f) {
+                                    selectedPointIndices.push_back(i);
+                                    (*m_points)[i].selected = 1.0f;
+                                    changedIndices.push_back(i);
+                                }
                             }
                         }
-
-                        if (hasSelection())
-                            Logger::info(
-                                std::to_string(selectedPointIndices.size()) + " points selected.");
                     }
 
                     if (hasSelection()) {
+                        Logger::info(std::to_string(selectedPointIndices.size()) + " points selected.");
+
                         glm::vec3 center(0.0f);
                         for (const unsigned int idx : selectedPointIndices) {
                             center += (*m_points)[idx].position;
@@ -88,8 +98,7 @@ namespace sfmeditor {
                         center /= static_cast<float>(selectedPointIndices.size());
 
                         gizmoTransform = glm::translate(glm::mat4(1.0f), center);
-
-                        gizmoStartPosition = glm::vec3(gizmoTransform[3]);
+                        gizmoLastTransform = gizmoTransform;
                     }
 
                     pendingSelection = true;

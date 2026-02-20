@@ -43,6 +43,9 @@ namespace sfmeditor {
 
     private:
         uint32_t m_VAO = 0, m_VBO = 0;
+
         std::unique_ptr<Shader> m_pointShader;
+
+        const float m_thresholdFactor = 0.1f;
     };
 }

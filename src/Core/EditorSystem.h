@@ -37,7 +37,7 @@ namespace sfmeditor {
 
         glm::mat4 gizmoTransform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
 
-        glm::vec3 gizmoStartPosition = {0.0f, 0.0f, 0.0f};
+        glm::mat4 gizmoLastTransform = glm::mat4(1.0f);
 
         std::vector<unsigned int> selectedPointIndices;
 
