@@ -19,8 +19,6 @@
 #include "Renderer/EditorCamera.h"
 #include "Renderer/LineRenderer.h"
 
-#include <unordered_set>
-
 
 namespace sfmeditor {
     class EditorSystem {

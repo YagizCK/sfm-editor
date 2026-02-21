@@ -150,9 +150,9 @@ namespace sfmeditor {
         const auto rowY = glm::vec4(vpMatrix[0][1], vpMatrix[1][1], vpMatrix[2][1], vpMatrix[3][1]);
         const auto rowW = glm::vec4(vpMatrix[0][3], vpMatrix[1][3], vpMatrix[2][3], vpMatrix[3][3]);
 
-        const size_t pointCount = m_points->size();
+        const unsigned int pointCount = static_cast<unsigned int>(m_points->size());
 
-        for (size_t i = 0; i < pointCount; ++i) {
+        for (unsigned int i = 0; i < pointCount; ++i) {
             const glm::vec3& p = (*m_points)[i].position;
 
             const float w = rowW.x * p.x + rowW.y * p.y + rowW.z * p.z + rowW.w;

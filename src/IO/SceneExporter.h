@@ -19,17 +19,16 @@
 #include "Core/Types.hpp"
 
 #include <string>
-#include <vector>
 
 namespace sfmeditor {
     class SceneExporter {
     public:
-        static bool exportFile(const std::string& filepath, const std::vector<Point>& points);
+        static bool exportFile(const std::string& filepath, const SfMScene& scene);
 
     private:
-        static bool exportCOLMAP(const std::string& filepath, const std::vector<Point>& points);
-        static bool exportPLY(const std::string& filepath, const std::vector<Point>& points);
-        static bool exportOBJ(const std::string& filepath, const std::vector<Point>& points);
-        static bool exportXYZ(const std::string& filepath, const std::vector<Point>& points);
+        static bool exportCOLMAP(const std::string& filepath, const SfMScene& scene);
+        static bool exportPLY(const std::string& filepath, const SfMScene& scene);
+        static bool exportOBJ(const std::string& filepath, const SfMScene& scene);
+        static bool exportXYZ(const std::string& filepath, const SfMScene& scene);
     };
 }

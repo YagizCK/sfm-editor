@@ -20,6 +20,9 @@
 #include "Core/Window.h"
 #include "Renderer/EditorCamera.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+#include <glad/glad.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <backends/imgui_impl_glfw.h>
@@ -73,59 +76,6 @@ namespace sfmeditor {
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    }
-
-    void UIManager::renderDockspace() {
-        static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
-
-        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-
-        ImGui::SetNextWindowPos(viewport->WorkPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
-        ImGui::SetNextWindowViewport(viewport->ID);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-
-        windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove;
-        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-        ImGui::Begin("SFM DockSpace", nullptr, windowFlags);
-        ImGui::PopStyleVar(3);
-
-        const ImGuiIO& io = ImGui::GetIO();
-        const ImGuiID dockspaceID = ImGui::GetID("SFMDockSpace");
-
-        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
-            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), dockspaceFlags);
-        }
-
-        if (m_resetLayout) {
-            m_resetLayout = false;
-
-            ImGui::DockBuilderRemoveNode(dockspaceID);
-            ImGui::DockBuilderAddNode(dockspaceID, dockspaceFlags | ImGuiDockNodeFlags_DockSpace);
-            ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->Size);
-
-            ImGuiID dockMainID = dockspaceID;
-
-            const ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.25f, nullptr,
-                                                                    &dockMainID);
-
-            const ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.25f, nullptr,
-                                                                     &dockMainID);
-
-            ImGui::DockBuilderDockWindow("Viewport", dockMainID);
-            ImGui::DockBuilderDockWindow("Properties", dockRightID);
-            ImGui::DockBuilderDockWindow("Logs", dockBottomID);
-
-            ImGui::DockBuilderFinish(dockspaceID);
-        }
-
-        ImGui::End();
     }
 
     void UIManager::renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
@@ -232,7 +182,15 @@ namespace sfmeditor {
             ImGui::Separator();
             ImGui::Dummy(ImVec2(0.0f, 2.0f));
 
-            ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Global:");
+            ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Selection:");
+            ImGui::BulletText("Single: Left Click");
+            ImGui::BulletText("Box Select: Click & Drag");
+            ImGui::BulletText("Multi/Toggle: Hold Ctrl");
+            ImGui::BulletText("Delete: Del");
+
+            ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+            ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "Camera:");
             ImGui::BulletText("Rotate: Hold Right Click");
             ImGui::BulletText("Pan: Hold Middle Click");
             ImGui::BulletText("Reset View: F");
@@ -251,14 +209,10 @@ namespace sfmeditor {
                     ImGui::Text("Slow: Hold Alt");
                     ImGui::Text("Adjust Speed: Scroll");
                     ImGui::Unindent();
-
-                    ImGui::Dummy(ImVec2(0.0f, 2.0f));
-                    ImGui::Text("Zoom (Move): Scroll (No Click)");
                 } else if (camera->cameraStyle == CameraStyle::Orbit) {
                     ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "[ ORBIT MODE ]");
                     ImGui::Separator();
                     ImGui::BulletText("Zoom In/Out: Scroll");
-
                     ImGui::Dummy(ImVec2(0.0f, 2.0f));
                     ImGui::TextDisabled("Distance: %.2f", camera->distance);
                 }
@@ -266,10 +220,12 @@ namespace sfmeditor {
             ImGui::Separator();
             ImGui::Text("Gizmo Mode:");
             ImGui::Indent();
-            ImGui::Text("None: Q");
-            ImGui::Text("Move: W");
-            ImGui::Text("Rotate: E");
-            ImGui::Text("Scale: R");
+
+            const int op = editorSystem->gizmoOperation;
+            ImGui::TextColored(op == -1 ? ImVec4(1, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1), "None: Q");
+            ImGui::TextColored(op == ImGuizmo::TRANSLATE ? ImVec4(1, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1), "Move: W");
+            ImGui::TextColored(op == ImGuizmo::ROTATE ? ImVec4(1, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1), "Rotate: E");
+            ImGui::TextColored(op == ImGuizmo::SCALE ? ImVec4(1, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1), "Scale: R");
             ImGui::Unindent();
         }
         ImGui::End();
@@ -280,14 +236,135 @@ namespace sfmeditor {
     }
 
     void UIManager::renderInfoPanel(const std::unique_ptr<SceneProperties>& sceneProperties,
-                                    const std::unique_ptr<EditorCamera>& camera, const int pointCount) {
+                                    const std::unique_ptr<EditorCamera>& camera,
+                                    const SfMScene& scene,
+                                    EditorSystem* editorSystem) {
         ImGui::Begin("Properties");
-
         if (ImGui::CollapsingHeader("Statistics", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Total Points: %d", pointCount);
+            ImGui::Text("Total Points: %zu", scene.points.size());
+            ImGui::Text("Total Cameras: %zu", scene.cameras.size());
             const ImGuiIO& io = ImGui::GetIO();
             ImGui::Text("FPS: %.1f", io.Framerate);
             ImGui::Text("Frame Time: %.3f ms", io.DeltaTime * 1000.0f);
+        }
+
+        if (ImGui::CollapsingHeader("Selected Point Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+            const auto& selectedIndices = editorSystem->selectedPointIndices;
+
+            if (selectedIndices.empty()) {
+                ImGui::TextDisabled("No point selected.");
+            } else if (selectedIndices.size() > 1) {
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Multiple points selected (%zu)",
+                                   selectedIndices.size());
+            } else {
+                unsigned int pointIdx = selectedIndices[0];
+
+                if (pointIdx < scene.metadata.size()) {
+                    const auto& meta = scene.metadata[pointIdx];
+
+                    ImGui::Text("ID: %llu", meta.original_id);
+                    ImGui::Text("Reproj. Error: %.4f px", meta.error);
+                    ImGui::Separator();
+                    ImGui::Text("Observed in %zu Images:", meta.observations.size());
+
+                    ImGui::BeginChild("TrackList", ImVec2(0, 300), true);
+
+                    for (const auto& obs : meta.observations) {
+                        std::string imgName = "Unknown";
+                        if (scene.cameras.contains(obs.image_id)) {
+                            imgName = scene.cameras.at(obs.image_id).imageName;
+                        }
+
+                        if (ImGui::TreeNode((void*)static_cast<intptr_t>(obs.image_id), "%s (Feature: %d)",
+                                            imgName.c_str(), obs.point2D_idx)) {
+                            std::string fullPath = scene.imageBasePath + "\\" + imgName;
+                            UITexture tex = getOrLoadImage(fullPath);
+
+                            if (tex.id != 0) {
+                                const float availWidth = ImGui::GetContentRegionAvail().x;
+
+                                float scale = availWidth / static_cast<float>(tex.width);
+                                float drawHeight = static_cast<float>(tex.height) * scale;
+                                float drawWidth = availWidth;
+
+                                if (constexpr float maxPanelHeight = 200.0f; drawHeight > maxPanelHeight) {
+                                    scale = maxPanelHeight / static_cast<float>(tex.height);
+                                    drawHeight = maxPanelHeight;
+                                    drawWidth = static_cast<float>(tex.width) * scale;
+                                }
+
+                                const float cursorPosX = ImGui::GetCursorPosX() + (availWidth - drawWidth) * 0.5f;
+                                ImGui::SetCursorPosX(cursorPosX);
+
+                                ImGui::Image(tex.id, ImVec2(drawWidth, drawHeight));
+
+                                if (ImGui::IsItemHovered()) {
+                                    ImGui::BeginTooltip();
+
+                                    const ImVec2 displaySize = ImGui::GetMainViewport()->WorkSize;
+
+                                    const float maxTooltipWidth = displaySize.x * 0.8f;
+                                    const float maxTooltipHeight = displaySize.y * 0.8f;
+
+                                    float ttScale = 1.0f;
+
+                                    if (static_cast<float>(tex.width) > maxTooltipWidth) {
+                                        ttScale = maxTooltipWidth / static_cast<float>(tex.width);
+                                    }
+
+                                    if ((static_cast<float>(tex.height) * ttScale) > maxTooltipHeight) {
+                                        ttScale = maxTooltipHeight / static_cast<float>(tex.height);
+                                    }
+
+                                    const float ttWidth = static_cast<float>(tex.width) * ttScale;
+                                    const float ttHeight = static_cast<float>(tex.height) * ttScale;
+
+                                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s", imgName.c_str());
+
+                                    const ImVec2 imageStartPos = ImGui::GetCursorScreenPos();
+
+                                    ImGui::Image(tex.id, ImVec2(ttWidth, ttHeight));
+
+                                    if (scene.cameras.contains(obs.image_id)) {
+                                        const auto& camPose = scene.cameras.at(obs.image_id);
+                                        if (obs.point2D_idx < camPose.features.size()) {
+                                            const glm::vec2 rawCoord = camPose.features[obs.point2D_idx].coordinates;
+
+                                            const float normX = rawCoord.x / static_cast<float>(tex.width);
+                                            const float normY = rawCoord.y / static_cast<float>(tex.height);
+
+                                            ImVec2 centerPos;
+                                            centerPos.x = imageStartPos.x + normX * ttWidth;
+                                            centerPos.y = imageStartPos.y + normY * ttHeight;
+
+                                            ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+                                            constexpr ImU32 crossColor = IM_COL32(255, 50, 50, 255);
+
+                                            drawList->AddCircle(centerPos, 5.0f, crossColor, 0, 4.0f);
+                                        }
+                                    }
+
+                                    ImGui::TextDisabled("Original Size: %dx%d | Shown at: %.0f%%", tex.width,
+                                                        tex.height, ttScale * 100.0f);
+
+                                    ImGui::EndTooltip();
+                                } else {
+                                    ImGui::TextDisabled("Resolution: %dx%d (Hover to Enlarge)", tex.width, tex.height);
+                                }
+                            } else {
+                                ImGui::TextColored(ImVec4(1, 0, 0, 1), "Image not found on disk!");
+                                ImGui::TextDisabled("Expected Path:\n%s", fullPath.c_str());
+                            }
+
+                            ImGui::TreePop();
+                        }
+                    }
+                    ImGui::EndChild();
+                } else {
+                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "No metadata available.");
+                }
+            }
         }
 
         if (ImGui::CollapsingHeader("Scene Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -400,5 +477,89 @@ namespace sfmeditor {
 
         ImGui::EndChild();
         ImGui::End();
+    }
+
+    void UIManager::renderDockspace() {
+        static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
+
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+        windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoMove;
+        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+        ImGui::Begin("SFM DockSpace", nullptr, windowFlags);
+        ImGui::PopStyleVar(3);
+
+        const ImGuiIO& io = ImGui::GetIO();
+        const ImGuiID dockspaceID = ImGui::GetID("SFMDockSpace");
+
+        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), dockspaceFlags);
+        }
+
+        if (m_resetLayout) {
+            m_resetLayout = false;
+
+            ImGui::DockBuilderRemoveNode(dockspaceID);
+            ImGui::DockBuilderAddNode(dockspaceID, dockspaceFlags | ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->Size);
+
+            ImGuiID dockMainID = dockspaceID;
+
+            const ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.25f, nullptr,
+                                                                    &dockMainID);
+
+            const ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.25f, nullptr,
+                                                                     &dockMainID);
+
+            ImGui::DockBuilderDockWindow("Viewport", dockMainID);
+            ImGui::DockBuilderDockWindow("Properties", dockRightID);
+            ImGui::DockBuilderDockWindow("Logs", dockBottomID);
+
+            ImGui::DockBuilderFinish(dockspaceID);
+        }
+
+        ImGui::End();
+    }
+
+    UITexture UIManager::getOrLoadImage(const std::string& filepath) {
+        if (m_imageCache.contains(filepath)) {
+            return m_imageCache[filepath];
+        }
+
+        UITexture tex;
+        int channels;
+        unsigned char* data = stbi_load(filepath.c_str(), &tex.width, &tex.height, &channels, 4);
+
+        if (data) {
+            glGenTextures(1, &tex.id);
+            glBindTexture(GL_TEXTURE_2D, tex.id);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex.width, tex.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            stbi_image_free(data);
+            Logger::info("Loaded image to UI: " + filepath);
+        } else {
+            Logger::error("Failed to load image: " + filepath);
+        }
+
+        m_imageCache[filepath] = tex;
+        return tex;
     }
 }

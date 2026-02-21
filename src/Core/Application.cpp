@@ -40,8 +40,32 @@ namespace sfmeditor {
         Logger::init();
 
         Events::onKey.connect([this](const int key, const int action) {
-            if (m_running && action == SFM_PRESS && key == SFM_KEY_ESCAPE) {
+            if (action != SFM_PRESS) return;
+
+            if (m_running && key == SFM_KEY_ESCAPE) {
                 m_running = false;
+            }
+
+            if (Input::isKeyPressed(SFM_KEY_LEFT_CONTROL)) {
+                if (key == SFM_KEY_O) {
+                    onImportMap();
+                    return;
+                }
+                if (key == SFM_KEY_S) {
+                    onSaveMap();
+                    return;
+                }
+                if (Input::isKeyPressed(SFM_KEY_LEFT_SHIFT) && key == SFM_KEY_S) {
+                    onSaveMap();
+                    return;
+                }
+                if (key == SFM_KEY_Z) {
+                    Logger::info("Undo action requested (Not fully implemented yet).");
+                    return;
+                }
+                if (key == SFM_KEY_Y || (Input::isKeyPressed(SFM_KEY_LEFT_SHIFT) && key == SFM_KEY_Z)) {
+                    Logger::info("Redo action requested (Not fully implemented yet).");
+                }
             }
         });
 
@@ -55,7 +79,7 @@ namespace sfmeditor {
         m_grid = std::make_unique<SceneGrid>();
         m_lineRenderer = std::make_unique<LineRenderer>();
         m_camera = std::make_unique<EditorCamera>();
-        m_editorSystem = std::make_unique<EditorSystem>(m_camera.get(), m_lineRenderer.get(), &m_points);
+        m_editorSystem = std::make_unique<EditorSystem>(m_camera.get(), m_lineRenderer.get(), &m_scene.points);
 
         glEnable(GL_PROGRAM_POINT_SIZE);
         glEnable(GL_DEPTH_TEST);
@@ -85,7 +109,7 @@ namespace sfmeditor {
             }
 
             // GPU Sync
-            m_renderer->updateBuffers(m_points, m_editorSystem.get());
+            m_renderer->updateBuffers(m_scene.points, m_editorSystem.get());
 
             // System Updates
             m_lineRenderer->onUpdate(m_deltaTime);
@@ -100,8 +124,7 @@ namespace sfmeditor {
                 glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-                m_renderer->renderPickingPass(m_points, m_sceneProperties.get(), m_camera.get());
-
+                m_renderer->renderPickingPass(m_scene.points, m_sceneProperties.get(), m_camera.get());
 
                 const bool isCtrl = Input::isKeyPressed(SFM_KEY_LEFT_CONTROL);
 
@@ -127,7 +150,7 @@ namespace sfmeditor {
 
             m_grid->draw(m_sceneProperties, m_camera);
             m_lineRenderer->draw(m_camera);
-            m_renderer->render(m_points, m_sceneProperties.get(), m_camera.get());
+            m_renderer->render(m_scene.points, m_sceneProperties.get(), m_camera.get());
 
             m_framebuffer->unbind();
 
@@ -143,7 +166,7 @@ namespace sfmeditor {
             );
             m_uiManager->renderViewport(m_framebuffer->getTextureID(), viewportInfo, m_camera.get(),
                                         m_editorSystem.get());
-            m_uiManager->renderInfoPanel(m_sceneProperties, m_camera, static_cast<int>(m_points.size()));
+            m_uiManager->renderInfoPanel(m_sceneProperties, m_camera, m_scene, m_editorSystem.get());
             m_uiManager->renderConsole();
             m_uiManager->endFrame();
 
@@ -168,17 +191,47 @@ namespace sfmeditor {
     void Application::loadMap(const std::string& filepath) {
         Logger::info("Loading map from: " + filepath);
 
-        const auto newPoints = ModelLoader::load(filepath);
+        const SfMScene newScene = ModelLoader::load(filepath);
 
-        if (newPoints.empty()) {
+        if (newScene.points.empty()) {
             Logger::warn("File loaded but contained no points or format error.");
             return;
         }
 
-        m_points = newPoints;
+        m_scene = newScene;
         m_editorSystem->resetState();
-        m_renderer->initBuffers(m_points);
-        Logger::info("Successfully loaded " + std::to_string(m_points.size()) + " points.");
+        m_renderer->initBuffers(m_scene.points);
+
+        m_lineRenderer->clear();
+
+        constexpr float camScale = 0.1f;
+        constexpr glm::vec3 camColor = {1.0f, 0.5f, 0.0f};
+
+        for (const auto& [image_id, cam] : m_scene.cameras) {
+            glm::mat4 model = glm::translate(glm::mat4(1.0f), cam.position) * glm::mat4_cast(cam.orientation);
+
+            auto center = glm::vec3(model * glm::vec4(0, 0, 0, 1));
+
+            auto forward = glm::vec3(model * glm::vec4(0, 0, camScale * 2.0f, 1));
+
+            auto tl = glm::vec3(model * glm::vec4(-camScale, -camScale, camScale * 2.0f, 1));
+            auto tr = glm::vec3(model * glm::vec4(camScale, -camScale, camScale * 2.0f, 1));
+            auto bl = glm::vec3(model * glm::vec4(-camScale, camScale, camScale * 2.0f, 1));
+            auto br = glm::vec3(model * glm::vec4(camScale, camScale, camScale * 2.0f, 1));
+
+            m_lineRenderer->addLine(center, tl, camColor);
+            m_lineRenderer->addLine(center, tr, camColor);
+            m_lineRenderer->addLine(center, bl, camColor);
+            m_lineRenderer->addLine(center, br, camColor);
+
+            m_lineRenderer->addLine(tl, tr, camColor);
+            m_lineRenderer->addLine(tr, br, camColor);
+            m_lineRenderer->addLine(br, bl, camColor);
+            m_lineRenderer->addLine(bl, tl, camColor);
+        }
+
+        Logger::info(std::format("Successfully loaded {} points and {} cameras.", m_scene.points.size(),
+                                 m_scene.cameras.size()));
     }
 
     void Application::onSaveMap() const {
@@ -189,7 +242,7 @@ namespace sfmeditor {
             "XYZ Points (*.xyz)\0*.xyz\0";
 
         if (const std::string filepath = FileDialog::saveFile(filter); !filepath.empty()) {
-            if (SceneExporter::exportFile(filepath, m_points)) Logger::info("Map saved successfully.");
+            if (SceneExporter::exportFile(filepath, m_scene)) Logger::info("Map saved successfully.");
             else Logger::error("Failed to save map!");
         }
     }

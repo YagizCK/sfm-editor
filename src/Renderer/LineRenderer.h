@@ -54,5 +54,7 @@ namespace sfmeditor {
         std::vector<LineData> m_lines;
 
         std::unique_ptr<Shader> m_shader;
+
+        int m_maxVertices = 10000;
     };
 }

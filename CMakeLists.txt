@@ -53,6 +53,10 @@ target_link_libraries(imguizmo PUBLIC
     glm
 )
 
+# stb_image
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE external/stb)
+
 file(GLOB_RECURSE SOURCES
     src/*.cpp
     src/*.h
@@ -69,6 +73,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     imgui
     glm
     imguizmo
+    stb
 )
 
 if(WIN32)
@@ -93,7 +98,7 @@ endif()
 file(MAKE_DIRECTORY "${TARGET_DIR}")
 
 if(NOT EXISTS "${TARGET_DIR}/assets")
-    message(STATUS "Asset junction olusturuluyor: ${TARGET_DIR}/assets")
+    message(STATUS "Creating asset junction: ${TARGET_DIR}/assets")
 
     file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/res/assets" SRC_PATH)
     file(TO_NATIVE_PATH "${TARGET_DIR}/assets" DST_PATH)
@@ -106,6 +111,6 @@ if(NOT EXISTS "${TARGET_DIR}/assets")
     )
 
     if(NOT link_result EQUAL 0)
-        message(WARNING "Link olusturulamadi! Hata: ${link_error}")
+        message(WARNING "Failed to create link! Error: ${link_error}")
     endif()
 endif()

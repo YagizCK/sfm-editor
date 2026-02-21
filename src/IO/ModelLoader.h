@@ -19,20 +19,20 @@
 #include "Core/Types.hpp"
 
 #include <string>
-#include <vector>
 
 namespace sfmeditor {
     class ModelLoader {
     public:
-        static std::vector<Point> load(const std::string& filepath);
+        static SfMScene load(const std::string& filepath);
 
     private:
-        static std::vector<Point> loadCOLMAP(const std::string& filepath);
-        static std::vector<Point> loadPLY(const std::string& filepath);
-        static std::vector<Point> loadOBJ(const std::string& filepath);
-        static std::vector<Point> loadXYZ(const std::string& filepath);
+        static SfMScene loadColmapBinary(const std::string& filepath);
+        static SfMScene loadColmapText(const std::string& filepath);
 
-        static std::vector<Point> loadColmapBinary(const std::string& filepath);
-        static std::vector<Point> loadColmapText(const std::string& filepath);
+        static void loadColmapCameras(const std::string& directory, SfMScene& scene);
+
+        static SfMScene loadPLY(const std::string& filepath);
+        static SfMScene loadOBJ(const std::string& filepath);
+        static SfMScene loadXYZ(const std::string& filepath);
     };
 }

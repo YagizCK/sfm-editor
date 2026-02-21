@@ -28,6 +28,12 @@ namespace sfmeditor {
     class Window;
     class EditorCamera;
 
+    struct UITexture {
+        uint32_t id = 0;
+        int width = 0;
+        int height = 0;
+    };
+
     class UIManager {
     public:
         explicit UIManager(Window* window);
@@ -47,7 +53,9 @@ namespace sfmeditor {
                             EditorSystem* editorSystem);
 
         void renderInfoPanel(const std::unique_ptr<SceneProperties>& sceneProperties,
-                             const std::unique_ptr<EditorCamera>& camera, int pointCount);
+                             const std::unique_ptr<EditorCamera>& camera,
+                             const SfMScene& scene,
+                             EditorSystem* editorSystem);
 
         void renderConsole();
 
@@ -55,5 +63,8 @@ namespace sfmeditor {
         void renderDockspace();
         Window* m_windowRef = nullptr;
         bool m_resetLayout = true;
+
+        UITexture getOrLoadImage(const std::string& filepath);
+        std::unordered_map<std::string, UITexture> m_imageCache;
     };
 }

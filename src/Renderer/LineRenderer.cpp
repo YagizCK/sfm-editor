@@ -21,7 +21,7 @@
 
 namespace sfmeditor {
     LineRenderer::LineRenderer() {
-        m_shader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+        m_shader = std::make_unique<Shader>("assets/shaders/line.vert", "assets/shaders/line.frag");
 
         glCreateVertexArrays(1, &m_VAO);
         glCreateBuffers(1, &m_VBO);
@@ -29,16 +29,24 @@ namespace sfmeditor {
         glBindVertexArray(m_VAO);
         glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 
+        m_maxVertices = 10000;
+        glBufferData(GL_ARRAY_BUFFER, m_maxVertices * sizeof(LineVertex), nullptr, GL_DYNAMIC_DRAW);
+
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(LineVertex), static_cast<void*>(nullptr));
 
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(LineVertex), (void*)offsetof(LineVertex, color));
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
     }
 
     LineRenderer::~LineRenderer() {
-        glDeleteVertexArrays(1, &m_VAO);
-        glDeleteBuffers(1, &m_VBO);
+        if (m_VAO)
+            glDeleteVertexArrays(1, &m_VAO);
+        if (m_VBO)
+            glDeleteBuffers(1, &m_VBO);
     }
 
     void LineRenderer::addLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color,
@@ -84,23 +92,28 @@ namespace sfmeditor {
             m_renderBuffer.push_back({line.end, line.color});
         }
 
+        const size_t vertexCount = m_renderBuffer.size();
+
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+
+        if (vertexCount > m_maxVertices) {
+            m_maxVertices = vertexCount + 5000;
+            glBufferData(GL_ARRAY_BUFFER, m_maxVertices * sizeof(LineVertex), nullptr, GL_DYNAMIC_DRAW);
+        }
+
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * sizeof(LineVertex), m_renderBuffer.data());
+
         m_shader->bind();
         m_shader->setMat4("u_ViewProjection", camera->getViewProjection());
 
         glBindVertexArray(m_VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-
-        glBufferData(GL_ARRAY_BUFFER, m_renderBuffer.size() * sizeof(LineVertex), m_renderBuffer.data(),
-                     GL_DYNAMIC_DRAW);
 
         glLineWidth(2.0f);
         glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(m_renderBuffer.size()));
         glLineWidth(1.0f);
 
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_shader->unbind();
-
-        std::erase_if(m_lines, [](const LineData& line) {
-            return line.lifetime <= 0.0f;
-        });
     }
 }

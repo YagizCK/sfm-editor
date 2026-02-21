@@ -27,7 +27,6 @@
 #include "EditorSystem.h"
 
 #include <memory>
-#include <vector>
 #include <glm/glm.hpp>
 
 
@@ -68,8 +67,8 @@ namespace sfmeditor {
 
         bool m_running = true;
 
-        std::vector<Point> m_points;
-
         glm::vec2 m_lastViewportSize = {1.0f, 1.0f};
+
+        SfMScene m_scene;
     };
 }

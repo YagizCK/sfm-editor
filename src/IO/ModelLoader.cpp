@@ -24,40 +24,61 @@
 #include <iostream>
 
 namespace sfmeditor {
-    std::vector<Point> ModelLoader::load(const std::string& filepath) {
-        const std::filesystem::path path(filepath);
+    SfMScene ModelLoader::load(const std::string& filepath) {
+        std::filesystem::path path = std::filesystem::weakly_canonical(filepath);
         const std::string ext = path.extension().string();
 
-        Logger::info("Loading file: " + filepath);
+        Logger::info("Loading file: " + path.string());
 
-        if (ext == ".bin") return loadColmapBinary(filepath);
-        if (ext == ".txt") return loadColmapText(filepath);
-        if (ext == ".ply") return loadPLY(filepath);
-        if (ext == ".obj") return loadOBJ(filepath);
-        if (ext == ".xyz") return loadXYZ(filepath);
+        SfMScene scene;
 
-        Logger::error("Unsupported format: " + ext);
-        return {};
+        if (ext == ".bin") {
+            scene = loadColmapBinary(path.string());
+            loadColmapCameras(path.parent_path().string(), scene);
+        } else if (ext == ".txt") scene = loadColmapText(path.string());
+        else if (ext == ".ply") scene = loadPLY(path.string());
+        else if (ext == ".obj") scene = loadOBJ(path.string());
+        else if (ext == ".xyz") scene = loadXYZ(path.string());
+        else Logger::error("Unsupported format: " + ext);
+
+        std::filesystem::path currentDir = path.parent_path();
+        bool foundImages = false;
+
+        for (int i = 0; i < 4; ++i) {
+            std::filesystem::path potentialImagesPath = currentDir / "images";
+            if (std::filesystem::exists(potentialImagesPath) && std::filesystem::is_directory(potentialImagesPath)) {
+                scene.imageBasePath = potentialImagesPath.string();
+                foundImages = true;
+                break;
+            }
+
+            if (currentDir.has_parent_path()) {
+                currentDir = currentDir.parent_path();
+            } else {
+                break;
+            }
+        }
+
+        if (!foundImages) {
+            scene.imageBasePath = path.parent_path().string();
+            Logger::warn("Could not find 'images' directory. Defaulting to: " + scene.imageBasePath);
+        } else {
+            Logger::info("Found images directory at: " + scene.imageBasePath);
+        }
+
+        return scene;
     }
 
-    std::vector<Point> ModelLoader::loadColmapBinary(const std::string& filepath) {
+    SfMScene ModelLoader::loadColmapBinary(const std::string& filepath) {
         std::ifstream file(filepath, std::ios::binary);
-        if (!file) return {};
-
-        // uint64 num_points
-        // loop:
-        //   uint64 point3D_id
-        //   double x, y, z
-        //   uint8 r, g, b
-        //   double error
-        //   uint64 track_length
-        //   loop(track_length): uint32 image_id, uint32 point2D_idx
+        if (!file) return SfMScene{};
 
         uint64_t numPoints = 0;
         file.read(reinterpret_cast<char*>(&numPoints), sizeof(uint64_t));
 
-        std::vector<Point> points;
-        points.reserve(numPoints);
+        SfMScene scene;
+        scene.points.reserve(numPoints);
+        scene.metadata.reserve(numPoints);
 
         for (uint64_t i = 0; i < numPoints; ++i) {
             uint64_t id;
@@ -72,19 +93,29 @@ namespace sfmeditor {
             file.read(reinterpret_cast<char*>(&error), sizeof(double));
             file.read(reinterpret_cast<char*>(&trackLength), sizeof(uint64_t));
 
-            // image_id (4 byte) + point2D_idx (4 byte) = 8 byte
-            file.seekg(trackLength * 8, std::ios::cur);
-
             Point p;
             p.position = {static_cast<float>(xyz[0]), static_cast<float>(xyz[1]), static_cast<float>(xyz[2])};
             p.color = {rgb[0] / 255.0f, rgb[1] / 255.0f, rgb[2] / 255.0f};
-            points.push_back(p);
+            scene.points.push_back(p);
+
+            PointMetadata meta;
+            meta.original_id = id;
+            meta.error = error;
+            meta.observations.reserve(trackLength);
+
+            for (uint64_t j = 0; j < trackLength; ++j) {
+                uint32_t image_id, point2D_idx;
+                file.read(reinterpret_cast<char*>(&image_id), sizeof(uint32_t));
+                file.read(reinterpret_cast<char*>(&point2D_idx), sizeof(uint32_t));
+                meta.observations.push_back({image_id, point2D_idx});
+            }
+            scene.metadata.push_back(meta);
         }
 
-        return points;
+        return scene;
     }
 
-    std::vector<Point> ModelLoader::loadColmapText(const std::string& filepath) {
+    SfMScene ModelLoader::loadColmapText(const std::string& filepath) {
         std::ifstream file(filepath);
         std::string line;
 
@@ -96,7 +127,7 @@ namespace sfmeditor {
         file.clear();
         file.seekg(0);
 
-        std::vector<Point> points;
+        SfMScene scene;
         while (std::getline(file, line)) {
             if (line.empty() || line[0] == '#') continue;
 
@@ -105,23 +136,133 @@ namespace sfmeditor {
             double x, y, z;
             int r, g, b;
             double error;
-            // COLMAP TXT: ID X Y Z R G B ERROR TRACK[]
+
             if (ss >> id >> x >> y >> z >> r >> g >> b >> error) {
                 Point p;
                 p.position = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
                 p.color = {r / 255.0f, g / 255.0f, b / 255.0f};
-                points.push_back(p);
+                scene.points.push_back(p);
+
+                PointMetadata meta;
+                meta.original_id = id;
+                meta.error = error;
+
+                uint32_t img_id, pt2d_idx;
+                while (ss >> img_id >> pt2d_idx) {
+                    meta.observations.push_back({img_id, pt2d_idx});
+                }
+                scene.metadata.push_back(meta);
             }
         }
-        return points;
+        return scene;
     }
 
-    std::vector<Point> ModelLoader::loadCOLMAP(const std::string& filepath) {
-        return {};
+    void ModelLoader::loadColmapCameras(const std::string& directory, SfMScene& scene) {
+        std::string camerasPath = (std::filesystem::path(directory) / "cameras.bin").string();
+        std::ifstream camFile(camerasPath, std::ios::binary);
+
+        std::unordered_map<uint32_t, std::vector<double>> cameraParams;
+
+        if (camFile) {
+            uint64_t numCameras;
+            camFile.read(reinterpret_cast<char*>(&numCameras), sizeof(uint64_t));
+            for (uint64_t i = 0; i < numCameras; ++i) {
+                uint32_t cam_id;
+                int model_id;
+                uint64_t width, height;
+                camFile.read(reinterpret_cast<char*>(&cam_id), sizeof(uint32_t));
+                camFile.read(reinterpret_cast<char*>(&model_id), sizeof(int));
+                camFile.read(reinterpret_cast<char*>(&width), sizeof(uint64_t));
+                camFile.read(reinterpret_cast<char*>(&height), sizeof(uint64_t));
+
+                size_t numParams = 0;
+                if (model_id == 0) numParams = 3; // SIMPLE_PINHOLE
+                else if (model_id == 1) numParams = 4; // PINHOLE
+                else if (model_id == 2) numParams = 4; // SIMPLE_RADIAL
+                else if (model_id == 3) numParams = 5; // RADIAL
+
+                std::vector<double> params(numParams);
+                camFile.read(reinterpret_cast<char*>(params.data()), numParams * sizeof(double));
+                cameraParams[cam_id] = params;
+            }
+        }
+
+        std::string imagesPath = (std::filesystem::path(directory) / "images.bin").string();
+        std::ifstream imgFile(imagesPath, std::ios::binary);
+
+        if (!imgFile) {
+            Logger::warn("images.bin not found in " + directory + ". Cameras will not be loaded.");
+            return;
+        }
+
+        uint64_t numImages;
+        imgFile.read(reinterpret_cast<char*>(&numImages), sizeof(uint64_t));
+
+        for (uint64_t i = 0; i < numImages; ++i) {
+            CameraPose cam;
+
+            uint32_t image_id;
+            double qw, qx, qy, qz, tx, ty, tz;
+            uint32_t camera_id;
+
+            imgFile.read(reinterpret_cast<char*>(&image_id), sizeof(uint32_t));
+            imgFile.read(reinterpret_cast<char*>(&qw), sizeof(double));
+            imgFile.read(reinterpret_cast<char*>(&qx), sizeof(double));
+            imgFile.read(reinterpret_cast<char*>(&qy), sizeof(double));
+            imgFile.read(reinterpret_cast<char*>(&qz), sizeof(double));
+            imgFile.read(reinterpret_cast<char*>(&tx), sizeof(double));
+            imgFile.read(reinterpret_cast<char*>(&ty), sizeof(double));
+            imgFile.read(reinterpret_cast<char*>(&tz), sizeof(double));
+            imgFile.read(reinterpret_cast<char*>(&camera_id), sizeof(uint32_t));
+
+            std::string imageName;
+            char c;
+            while (imgFile.read(&c, 1) && c != '\0') {
+                imageName += c;
+            }
+
+            uint64_t numPoints2D;
+            imgFile.read(reinterpret_cast<char*>(&numPoints2D), sizeof(uint64_t));
+
+            cam.features.resize(numPoints2D);
+            for (uint64_t j = 0; j < numPoints2D; ++j) {
+                double x, y;
+                uint64_t point3D_id;
+                imgFile.read(reinterpret_cast<char*>(&x), sizeof(double));
+                imgFile.read(reinterpret_cast<char*>(&y), sizeof(double));
+                imgFile.read(reinterpret_cast<char*>(&point3D_id), sizeof(uint64_t));
+
+                cam.features[j].coordinates = glm::vec2(static_cast<float>(x), static_cast<float>(y));
+            }
+
+            glm::quat q(static_cast<float>(qw), static_cast<float>(qx), static_cast<float>(qy), static_cast<float>(qz));
+            glm::vec3 t(static_cast<float>(tx), static_cast<float>(ty), static_cast<float>(tz));
+
+            glm::mat3 R = glm::mat3_cast(q);
+
+            glm::vec3 cameraCenter = -glm::transpose(R) * t;
+
+            glm::quat cameraOrientation = glm::quat_cast(glm::transpose(R));
+
+            cam.cameraID = camera_id;
+            cam.imageName = imageName;
+            cam.position = cameraCenter;
+            cam.orientation = cameraOrientation;
+
+            if (cameraParams.contains(camera_id) && !cameraParams[camera_id].empty()) {
+                cam.focalLength = static_cast<float>(cameraParams[camera_id][0]);
+            } else {
+                cam.focalLength = 1000.0f;
+            }
+
+            scene.cameras[image_id] = cam;
+        }
+
+        Logger::info(std::format("Successfully loaded {} camera poses.", scene.cameras.size()));
     }
 
-    std::vector<Point> ModelLoader::loadPLY(const std::string& filepath) {
-        std::vector<Point> points;
+    SfMScene ModelLoader::loadPLY(const std::string& filepath) {
+        SfMScene scene;
         std::ifstream in(filepath);
         std::string line;
         bool headerEnded = false;
@@ -132,7 +273,7 @@ namespace sfmeditor {
                 std::stringstream ss(line);
                 std::string temp;
                 ss >> temp >> temp >> vertexCount;
-                points.reserve(vertexCount);
+                scene.points.reserve(vertexCount);
             }
             if (line == "end_header") {
                 headerEnded = true;
@@ -150,14 +291,14 @@ namespace sfmeditor {
                 } else {
                     p.color = {r, g, b};
                 }
-                points.push_back(p);
+                scene.points.push_back(p);
             }
         }
-        return points;
+        return scene;
     }
 
-    std::vector<Point> ModelLoader::loadOBJ(const std::string& filepath) {
-        std::vector<Point> points;
+    SfMScene ModelLoader::loadOBJ(const std::string& filepath) {
+        SfMScene scene;
         std::ifstream in(filepath);
         std::string line;
 
@@ -175,14 +316,14 @@ namespace sfmeditor {
                 } else {
                     p.color = {1.0f, 1.0f, 1.0f};
                 }
-                points.push_back(p);
+                scene.points.push_back(p);
             }
         }
-        return points;
+        return scene;
     }
 
-    std::vector<Point> ModelLoader::loadXYZ(const std::string& filepath) {
-        std::vector<Point> points;
+    SfMScene ModelLoader::loadXYZ(const std::string& filepath) {
+        SfMScene scene;
         std::ifstream in(filepath);
         std::string line;
 
@@ -194,9 +335,9 @@ namespace sfmeditor {
             Point p;
             if (ss >> p.position.x >> p.position.y >> p.position.z >> r >> g >> b) {
                 p.color = {r / 255.0f, g / 255.0f, b / 255.0f};
-                points.push_back(p);
+                scene.points.push_back(p);
             }
         }
-        return points;
+        return scene;
     }
 }

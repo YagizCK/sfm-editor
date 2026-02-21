@@ -20,3 +20,6 @@ This product includes software developed by the following projects:
 
 * ImGuizmo (MIT License)
   Copyright (c) 2016 - Cedric Guillemet
+
+* stb_image (Public Domain / MIT License)
+  Copyright (c) 2017 Sean Barrett

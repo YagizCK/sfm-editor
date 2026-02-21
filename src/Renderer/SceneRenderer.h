@@ -23,7 +23,6 @@
 
 #include <vector>
 #include <memory>
-#include <unordered_set>
 
 
 namespace sfmeditor {

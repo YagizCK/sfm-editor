@@ -16,8 +16,12 @@
 
 #pragma once
 
-#include <glm/vec3.hpp>
-#include <glm/vec2.hpp>
+#include <glm/glm.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/quaternion.hpp>
+#include <string>
+#include <vector>
+#include <unordered_map>
 
 namespace sfmeditor {
     struct ViewportInfo {
@@ -31,6 +35,37 @@ namespace sfmeditor {
         glm::vec3 position;
         glm::vec3 color;
         float selected = 0.0f;
+    };
+
+    struct PointObservation {
+        uint32_t image_id;
+        uint32_t point2D_idx;
+    };
+
+    struct PointMetadata {
+        uint64_t original_id;
+        double error = 0.0;
+        std::vector<PointObservation> observations;
+    };
+
+    struct Point2D {
+        glm::vec2 coordinates;
+    };
+
+    struct CameraPose {
+        uint32_t cameraID;
+        std::string imageName;
+        glm::vec3 position;
+        glm::quat orientation;
+        float focalLength;
+        std::vector<Point2D> features;
+    };
+
+    struct SfMScene {
+        std::string imageBasePath;
+        std::vector<Point> points;
+        std::vector<PointMetadata> metadata;
+        std::unordered_map<uint32_t, CameraPose> cameras;
     };
 
     struct SceneProperties {
