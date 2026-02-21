@@ -76,11 +76,12 @@ namespace sfmeditor {
             m_deltaTime = time - m_lastFrameTime;
             m_lastFrameTime = time;
 
-            if ((m_viewportSize.x != m_lastViewportSize.x || m_viewportSize.y != m_lastViewportSize.y) &&
-                m_viewportSize.x > 0.0f && m_viewportSize.y > 0.0f) {
-                m_lastViewportSize = m_viewportSize;
-                m_framebuffer->resize(static_cast<uint32_t>(m_viewportSize.x), static_cast<uint32_t>(m_viewportSize.y));
-                m_camera->onResize(m_viewportSize.x, m_viewportSize.y);
+            if ((viewportInfo.size.x != m_lastViewportSize.x || viewportInfo.size.y != m_lastViewportSize.y) &&
+                viewportInfo.size.x > 0.0f && viewportInfo.size.y > 0.0f) {
+                m_lastViewportSize = viewportInfo.size;
+                m_framebuffer->resize(static_cast<uint32_t>(viewportInfo.size.x),
+                                      static_cast<uint32_t>(viewportInfo.size.y));
+                m_camera->onResize(viewportInfo.size.x, viewportInfo.size.y);
             }
 
             // GPU Sync
@@ -94,6 +95,28 @@ namespace sfmeditor {
 
             // Render Pass
             m_framebuffer->bind();
+
+            if (m_editorSystem->pendingPickedID) {
+                glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                m_renderer->renderPickingPass(m_points, m_sceneProperties.get(), m_camera.get());
+
+
+                const bool isCtrl = Input::isKeyPressed(SFM_KEY_LEFT_CONTROL);
+
+                const glm::vec2 mousePos = m_editorSystem->boxEnd;
+
+                const int pickedID = SceneRenderer::readPointID(
+                    static_cast<int>(mousePos.x),
+                    static_cast<int>(mousePos.y),
+                    static_cast<int>(viewportInfo.size.y)
+                );
+
+                m_editorSystem->processPickedID(pickedID, isCtrl);
+                m_editorSystem->pendingPickedID = false;
+            }
+
             glClearColor(
                 m_sceneProperties->backgroundColor.r,
                 m_sceneProperties->backgroundColor.g,

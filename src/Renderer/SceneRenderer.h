@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <memory>
+#include <unordered_set>
 
 
 namespace sfmeditor {
@@ -41,10 +42,16 @@ namespace sfmeditor {
 
         void render(const std::vector<Point>& points, const SceneProperties* props, const EditorCamera* camera) const;
 
+        void renderPickingPass(const std::vector<Point>& points, const SceneProperties* props,
+                               const EditorCamera* camera) const;
+
+        static int readPointID(int mouseX, int mouseY, int vpHeight);
+
     private:
         uint32_t m_VAO = 0, m_VBO = 0;
 
         std::unique_ptr<Shader> m_pointShader;
+        std::unique_ptr<Shader> m_pickingShader;
 
         const float m_thresholdFactor = 0.1f;
     };

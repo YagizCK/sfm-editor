@@ -17,15 +17,19 @@
 #include "SceneRenderer.h"
 
 #include "Core/Logger.h"
+#include "Core/Input.h"
 
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <format>
 
+#include "Core/KeyCodes.hpp"
+
 
 namespace sfmeditor {
     SceneRenderer::SceneRenderer() {
         m_pointShader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
+        m_pickingShader = std::make_unique<Shader>("assets/shaders/picking.vert", "assets/shaders/picking.frag");
     }
 
     SceneRenderer::~SceneRenderer() {
@@ -163,5 +167,36 @@ namespace sfmeditor {
 
         m_pointShader->unbind();
         glDisable(GL_BLEND);
+    }
+
+    void SceneRenderer::renderPickingPass(const std::vector<Point>& points, const SceneProperties* props,
+                                          const EditorCamera* camera) const {
+        if (points.empty()) return;
+
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+
+        m_pickingShader->bind();
+        m_pickingShader->setFloat("u_PointSize", props->pointSize);
+        m_pickingShader->setMat4("u_ViewProjection", camera->getViewProjection());
+
+        glBindVertexArray(m_VAO);
+        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(points.size()));
+
+        m_pickingShader->unbind();
+    }
+
+    int SceneRenderer::readPointID(const int mouseX, const int mouseY, const int vpHeight) {
+        const int glY = vpHeight - mouseY;
+
+        unsigned char pixel[4];
+
+        glReadPixels(mouseX, glY, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+
+        int id = pixel[0] | (pixel[1] << 8) | (pixel[2] << 16);
+
+        id -= 1;
+
+        return id;
     }
 }

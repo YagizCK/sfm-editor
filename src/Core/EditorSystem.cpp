@@ -16,6 +16,8 @@
 
 #include "EditorSystem.h"
 
+#include <format>
+
 #include "Input.h"
 #include "KeyCodes.hpp"
 #include "Logger.h"
@@ -30,78 +32,21 @@ namespace sfmeditor {
 
             if (!ImGuizmo::IsUsing() && button == SFM_MOUSE_BUTTON_LEFT) {
                 if (!ImGuizmo::IsOver() && action == SFM_PRESS) {
-                    if (!Input::isKeyPressed(SFM_KEY_LEFT_CONTROL)) {
-                        clearSelection();
-                    }
-
-                    pendingSelection = true;
-
                     boxSelecting = true;
                     boxStart = Input::getVpRelativeMousePos(m_viewportInfo);
                     boxEnd = boxStart;
                 } else if (action == SFM_RELEASE) {
                     boxSelecting = false;
-                    boxEnd = Input::getVpRelativeMousePos(m_viewportInfo);
 
-                    const glm::vec2 d = glm::abs(boxEnd - boxStart);
+                    const glm::vec2 end = Input::getVpRelativeMousePos(m_viewportInfo);
+                    const glm::vec2 d = glm::abs(end - boxStart);
 
-                    if (const float distSq = glm::dot(d, d); distSq < 9.0f) {
-                        if (const int closestIdx = getClosestPointIdx(36.0f); closestIdx != -1) {
-                            if (Input::isKeyPressed(SFM_KEY_LEFT_CONTROL) && (*m_points)[closestIdx].selected > 0.5f) {
-                                (*m_points)[closestIdx].selected = 0.0f;
-                                changedIndices.push_back(closestIdx);
-                            } else if ((*m_points)[closestIdx].selected < 0.5f) {
-                                selectedPointIndices.push_back(static_cast<unsigned int>(closestIdx));
-                                (*m_points)[closestIdx].selected = 1.0f;
-                                changedIndices.push_back(closestIdx);
-                            }
-                        }
+                    if (const float distSq = glm::dot(d, d); distSq < m_boxSelectSqThreshold) {
+                        pendingPickedID = true;
                     } else {
-                        const float minX = std::min(boxStart.x, boxEnd.x);
-                        const float maxX = std::max(boxStart.x, boxEnd.x);
-                        const float minY = std::min(boxStart.y, boxEnd.y);
-                        const float maxY = std::max(boxStart.y, boxEnd.y);
-
-                        const glm::mat4 vp = m_camera->getViewProjection();
-                        const bool isCtrlPressed = Input::isKeyPressed(SFM_KEY_LEFT_CONTROL);
-
-                        for (int i = 0; i < std::ssize(*m_points); ++i) {
-                            glm::vec4 clipPos = vp * glm::vec4((*m_points)[i].position, 1.0f);
-
-                            if (clipPos.w <= 0.0f) continue;
-
-                            const glm::vec3 ndc = glm::vec3(clipPos) / clipPos.w;
-
-                            const float screenX = (ndc.x + 1.0f) * 0.5f * m_viewportInfo.size.x;
-                            const float screenY = (1.0f - ndc.y) * 0.5f * m_viewportInfo.size.y;
-
-                            if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
-                                if (isCtrlPressed && (*m_points)[i].selected > 0.5f) {
-                                    (*m_points)[i].selected = 0.0f;
-                                    changedIndices.push_back(i);
-                                } else if ((*m_points)[i].selected < 0.5f) {
-                                    selectedPointIndices.push_back(i);
-                                    (*m_points)[i].selected = 1.0f;
-                                    changedIndices.push_back(i);
-                                }
-                            }
-                        }
+                        boxEnd = end;
+                        processBoxSelection(m_camera->getViewProjection(), Input::isKeyPressed(SFM_KEY_LEFT_CONTROL));
                     }
-
-                    if (hasSelection()) {
-                        Logger::info(std::to_string(selectedPointIndices.size()) + " points selected.");
-
-                        glm::vec3 center(0.0f);
-                        for (const unsigned int idx : selectedPointIndices) {
-                            center += (*m_points)[idx].position;
-                        }
-                        center /= static_cast<float>(selectedPointIndices.size());
-
-                        gizmoTransform = glm::translate(glm::mat4(1.0f), center);
-                        gizmoLastTransform = gizmoTransform;
-                    }
-
-                    pendingSelection = true;
                 }
             }
         });
@@ -132,7 +77,14 @@ namespace sfmeditor {
     void EditorSystem::onUpdate(const ViewportInfo& viewportInfo) {
         m_viewportInfo = viewportInfo;
 
-        if (boxSelecting) boxEnd = Input::getVpRelativeMousePos(m_viewportInfo);
+        if (boxSelecting) {
+            const glm::vec2 end = Input::getVpRelativeMousePos(m_viewportInfo);
+            const glm::vec2 d = glm::abs(end - boxStart);
+
+            if (const float distSq = glm::dot(d, d); distSq >= m_boxSelectSqThreshold) {
+                boxEnd = end;
+            }
+        }
     }
 
     bool EditorSystem::hasSelection() const {
@@ -147,46 +99,101 @@ namespace sfmeditor {
             }
         }
         selectedPointIndices.clear();
+
+        pendingSelection = true;
     }
 
     void EditorSystem::resetState() {
         boxSelecting = false;
+        pendingPickedID = false;
         pendingSelection = false;
         pendingDeletion = false;
         selectedPointIndices.clear();
         changedIndices.clear();
     }
 
-    bool EditorSystem::projectToViewport(const glm::vec3& worldPos, glm::vec2& outScreenPos) const {
-        const glm::vec4 clip = m_camera->getViewProjection() * glm::vec4(worldPos, 1.0f);
+    void EditorSystem::processPickedID(const int pickedID, const bool isCtrlPressed) {
+        if (!isCtrlPressed) clearSelection();
 
-        if (clip.w <= 0.0f) return false;
+        if (pickedID < 0 || pickedID >= m_points->size()) {
+            return;
+        }
 
-        const glm::vec3 ndc = glm::vec3(clip) / clip.w;
+        if (isCtrlPressed && (*m_points)[pickedID].selected > 0.5f) {
+            (*m_points)[pickedID].selected = 0.0f;
+            changedIndices.push_back(pickedID);
+            std::erase(selectedPointIndices, static_cast<unsigned int>(pickedID));
+        } else if ((*m_points)[pickedID].selected < 0.5f) {
+            selectedPointIndices.push_back(pickedID);
+            (*m_points)[pickedID].selected = 1.0f;
+            changedIndices.push_back(pickedID);
+        }
 
-        if (ndc.x < -1 || ndc.x > 1 || ndc.y < -1 || ndc.y > 1) return false;
+        pendingSelection = true;
 
-        outScreenPos.x = (ndc.x * 0.5f + 0.5f) * m_viewportInfo.size.x;
-        outScreenPos.y = (1.0f - (ndc.y * 0.5f + 0.5f)) * m_viewportInfo.size.y;
-
-        return true;
+        updateGizmoCenter();
     }
 
-    int EditorSystem::getClosestPointIdx(const float maxDistanceSq) {
-        int closestIdx = -1;
-        float closestDist = maxDistanceSq;
+    void EditorSystem::processBoxSelection(const glm::mat4& vpMatrix, const bool isCtrlPressed) {
+        if (!isCtrlPressed) clearSelection();
 
-        for (size_t i = 0; i < m_points->size(); ++i) {
-            glm::vec2 screenPos;
-            if (!projectToViewport((*m_points)[i].position, screenPos)) continue;
+        const float vpW = m_viewportInfo.size.x;
+        const float vpH = m_viewportInfo.size.y;
 
-            const glm::vec2 d = screenPos - Input::getVpRelativeMousePos(m_viewportInfo);
-            if (const float distSq = glm::dot(d, d); distSq < closestDist) {
-                closestDist = distSq;
-                closestIdx = static_cast<int>(i);
+        const float ndcMinX = (std::min(boxStart.x, boxEnd.x) / vpW) * 2.0f - 1.0f;
+        const float ndcMaxX = (std::max(boxStart.x, boxEnd.x) / vpW) * 2.0f - 1.0f;
+
+        const float ndcMinY = 1.0f - (std::max(boxStart.y, boxEnd.y) / vpH) * 2.0f;
+        const float ndcMaxY = 1.0f - (std::min(boxStart.y, boxEnd.y) / vpH) * 2.0f;
+
+        const auto rowX = glm::vec4(vpMatrix[0][0], vpMatrix[1][0], vpMatrix[2][0], vpMatrix[3][0]);
+        const auto rowY = glm::vec4(vpMatrix[0][1], vpMatrix[1][1], vpMatrix[2][1], vpMatrix[3][1]);
+        const auto rowW = glm::vec4(vpMatrix[0][3], vpMatrix[1][3], vpMatrix[2][3], vpMatrix[3][3]);
+
+        const size_t pointCount = m_points->size();
+
+        for (size_t i = 0; i < pointCount; ++i) {
+            const glm::vec3& p = (*m_points)[i].position;
+
+            const float w = rowW.x * p.x + rowW.y * p.y + rowW.z * p.z + rowW.w;
+            if (w <= 0.0f) continue;
+
+            const float x = rowX.x * p.x + rowX.y * p.y + rowX.z * p.z + rowX.w;
+            if (x < ndcMinX * w || x > ndcMaxX * w) continue;
+
+            const float y = rowY.x * p.x + rowY.y * p.y + rowY.z * p.z + rowY.w;
+            if (y < ndcMinY * w || y > ndcMaxY * w) continue;
+
+            if (isCtrlPressed && (*m_points)[i].selected > 0.5f) {
+                (*m_points)[i].selected = 0.0f;
+                changedIndices.push_back(i);
+            } else if ((*m_points)[i].selected < 0.5f) {
+                selectedPointIndices.push_back(i);
+                (*m_points)[i].selected = 1.0f;
+                changedIndices.push_back(i);
             }
         }
 
-        return closestIdx;
+        std::erase_if(selectedPointIndices, [&](const unsigned int idx) {
+            return (*m_points)[idx].selected < 0.5f;
+        });
+
+        pendingSelection = true;
+
+        updateGizmoCenter();
+    }
+
+    void EditorSystem::updateGizmoCenter() {
+        if (hasSelection()) {
+            Logger::info(std::to_string(selectedPointIndices.size()) + " points selected.");
+            glm::vec3 center(0.0f);
+            for (const unsigned int idx : selectedPointIndices) {
+                center += (*m_points)[idx].position;
+            }
+            center /= static_cast<float>(selectedPointIndices.size());
+
+            gizmoTransform = glm::translate(glm::mat4(1.0f), center);
+            gizmoLastTransform = gizmoTransform;
+        }
     }
 }

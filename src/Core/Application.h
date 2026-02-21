@@ -70,7 +70,6 @@ namespace sfmeditor {
 
         std::vector<Point> m_points;
 
-        glm::vec2 m_viewportSize = {0.0f, 0.0f};
-        glm::vec2 m_lastViewportSize = {0.0f, 0.0f};
+        glm::vec2 m_lastViewportSize = {1.0f, 1.0f};
     };
 }

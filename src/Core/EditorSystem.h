@@ -19,6 +19,8 @@
 #include "Renderer/EditorCamera.h"
 #include "Renderer/LineRenderer.h"
 
+#include <unordered_set>
+
 
 namespace sfmeditor {
     class EditorSystem {
@@ -32,6 +34,10 @@ namespace sfmeditor {
         void clearSelection();
 
         void resetState();
+
+        void processPickedID(int pickedID, bool isCtrlPressed);
+
+        void processBoxSelection(const glm::mat4& vpMatrix, bool isCtrlPressed);
 
         int gizmoOperation = ImGuizmo::TRANSLATE;
 
@@ -47,13 +53,12 @@ namespace sfmeditor {
 
         std::vector<unsigned int> changedIndices;
 
+        bool pendingPickedID = false;
         bool pendingSelection = false;
         bool pendingDeletion = false;
 
     private:
-        bool projectToViewport(const glm::vec3& worldPos, glm::vec2& outScreenPos) const;
-
-        int getClosestPointIdx(float maxDistanceSq);
+        void updateGizmoCenter();
 
         EditorCamera* m_camera;
         LineRenderer* m_lineRenderer;
@@ -61,5 +66,7 @@ namespace sfmeditor {
         ViewportInfo m_viewportInfo;
 
         std::vector<Point>* m_points;
+
+        const float m_boxSelectSqThreshold = 100.0f;
     };
 }

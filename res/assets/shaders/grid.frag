@@ -1,12 +1,13 @@
 #version 460 core
 
-out vec4 FragColor;
 in vec3 v_WorldPos;
 
 uniform vec3 u_CameraPos;
 uniform float u_GridSize;
 uniform int u_IsLine;
 uniform vec3 u_LineColor;
+
+out vec4 FragColor;
 
 float drawGrid(vec2 coord, float spacing) {
     vec2 grid = abs(fract(coord / spacing - 0.5) - 0.5) / fwidth(coord / spacing);
