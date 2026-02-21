@@ -72,7 +72,6 @@ namespace sfmeditor {
         m_window = std::make_unique<Window>(WindowProps("SFM Editor", 1600, 900));
         g_nativeWindow = m_window->getNativeWindow();
 
-        m_uiManager = std::make_unique<UIManager>(m_window.get());
         m_sceneProperties = std::make_unique<SceneProperties>();
         m_renderer = std::make_unique<SceneRenderer>();
         m_framebuffer = std::make_unique<Framebuffer>(1600, 900);
@@ -80,6 +79,8 @@ namespace sfmeditor {
         m_lineRenderer = std::make_unique<LineRenderer>();
         m_camera = std::make_unique<EditorCamera>();
         m_editorSystem = std::make_unique<EditorSystem>(m_camera.get(), m_lineRenderer.get(), &m_scene.points);
+        m_uiManager = std::make_unique<UIManager>(m_window.get());
+        m_uiManager->initPanels(m_sceneProperties.get(), m_camera.get(), &m_scene, m_editorSystem.get());
 
         glEnable(GL_PROGRAM_POINT_SIZE);
         glEnable(GL_DEPTH_TEST);
@@ -93,12 +94,12 @@ namespace sfmeditor {
     }
 
     void Application::run() {
-        ViewportInfo viewportInfo;
-
         while (m_running && !m_window->shouldClose()) {
             const float time = static_cast<float>(glfwGetTime());
             m_deltaTime = time - m_lastFrameTime;
             m_lastFrameTime = time;
+
+            ViewportInfo& viewportInfo = m_uiManager->getViewportPanel()->getViewportInfo();
 
             if ((viewportInfo.size.x != m_lastViewportSize.x || viewportInfo.size.y != m_lastViewportSize.y) &&
                 viewportInfo.size.x > 0.0f && viewportInfo.size.y > 0.0f) {
@@ -164,10 +165,8 @@ namespace sfmeditor {
                 [this]() { onSaveMap(); },
                 [this]() { onExit(); }
             );
-            m_uiManager->renderViewport(m_framebuffer->getTextureID(), viewportInfo, m_camera.get(),
-                                        m_editorSystem.get());
-            m_uiManager->renderInfoPanel(m_sceneProperties, m_camera, m_scene, m_editorSystem.get());
-            m_uiManager->renderConsole();
+            m_uiManager->getViewportPanel()->setTextureID(m_framebuffer->getTextureID());
+            m_uiManager->renderPanels();
             m_uiManager->endFrame();
 
             m_window->onUpdate();

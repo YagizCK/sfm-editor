@@ -16,32 +16,26 @@
 
 #pragma once
 
-#include "Core/Types.hpp"
-#include "Core/EditorSystem.h"
+#include "Panels/UIPanel.h"
+#include "Panels/ViewportPanel.h"
+#include "Panels/PropertiesPanel.h"
+#include "Panels/ConsolePanel.h"
 
-#include <functional>
-#include <cstdint>
+#include <vector>
 #include <memory>
+#include <functional>
 
 
 namespace sfmeditor {
     class Window;
-    class EditorCamera;
-
-    struct UITexture {
-        uint32_t id = 0;
-        int width = 0;
-        int height = 0;
-    };
 
     class UIManager {
     public:
         explicit UIManager(Window* window);
         ~UIManager();
-        UIManager(const UIManager&) = default;
-        UIManager& operator=(const UIManager&) = default;
-        UIManager(UIManager&&) = default;
-        UIManager& operator=(UIManager&&) = default;
+
+        void initPanels(SceneProperties* sceneProperties, EditorCamera* camera, SfMScene* scene,
+                        EditorSystem* editorSystem);
 
         void beginFrame();
         void endFrame() const;
@@ -49,22 +43,18 @@ namespace sfmeditor {
         void renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
                                const std::function<void()>& onExit);
 
-        void renderViewport(uint32_t textureID, ViewportInfo& viewportInfo, const EditorCamera* camera,
-                            EditorSystem* editorSystem);
+        void renderPanels() const;
 
-        void renderInfoPanel(const std::unique_ptr<SceneProperties>& sceneProperties,
-                             const std::unique_ptr<EditorCamera>& camera,
-                             const SfMScene& scene,
-                             EditorSystem* editorSystem);
-
-        void renderConsole();
+        ViewportPanel* getViewportPanel() const { return m_viewportPanel.get(); }
 
     private:
         void renderDockspace();
+
         Window* m_windowRef = nullptr;
         bool m_resetLayout = true;
 
-        UITexture getOrLoadImage(const std::string& filepath);
-        std::unordered_map<std::string, UITexture> m_imageCache;
+        std::unique_ptr<ViewportPanel> m_viewportPanel;
+
+        std::vector<std::unique_ptr<UIPanel>> m_otherPanels;
     };
 }
