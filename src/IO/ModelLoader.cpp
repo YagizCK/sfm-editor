@@ -157,33 +157,57 @@ namespace sfmeditor {
         return scene;
     }
 
+    struct ColmapCameraDef {
+        int model_id;
+        uint64_t width;
+        uint64_t height;
+        std::vector<double> params;
+    };
+
     void ModelLoader::loadColmapCameras(const std::string& directory, SfMScene& scene) {
         std::string camerasPath = (std::filesystem::path(directory) / "cameras.bin").string();
         std::ifstream camFile(camerasPath, std::ios::binary);
 
-        std::unordered_map<uint32_t, std::vector<double>> cameraParams;
+        std::unordered_map<uint32_t, ColmapCameraDef> cameraDefs;
 
         if (camFile) {
             uint64_t numCameras;
             camFile.read(reinterpret_cast<char*>(&numCameras), sizeof(uint64_t));
+
             for (uint64_t i = 0; i < numCameras; ++i) {
                 uint32_t cam_id;
-                int model_id;
-                uint64_t width, height;
+                ColmapCameraDef def;
+
                 camFile.read(reinterpret_cast<char*>(&cam_id), sizeof(uint32_t));
-                camFile.read(reinterpret_cast<char*>(&model_id), sizeof(int));
-                camFile.read(reinterpret_cast<char*>(&width), sizeof(uint64_t));
-                camFile.read(reinterpret_cast<char*>(&height), sizeof(uint64_t));
+                camFile.read(reinterpret_cast<char*>(&def.model_id), sizeof(int));
+                camFile.read(reinterpret_cast<char*>(&def.width), sizeof(uint64_t));
+                camFile.read(reinterpret_cast<char*>(&def.height), sizeof(uint64_t));
 
                 size_t numParams = 0;
-                if (model_id == 0) numParams = 3; // SIMPLE_PINHOLE
-                else if (model_id == 1) numParams = 4; // PINHOLE
-                else if (model_id == 2) numParams = 4; // SIMPLE_RADIAL
-                else if (model_id == 3) numParams = 5; // RADIAL
+                switch (def.model_id) {
+                case 0: numParams = 3;
+                    break; // SIMPLE_PINHOLE: f, cx, cy
+                case 1: numParams = 4;
+                    break; // PINHOLE: fx, fy, cx, cy
+                case 2: numParams = 4;
+                    break; // SIMPLE_RADIAL: f, cx, cy, k
+                case 3: numParams = 5;
+                    break; // RADIAL: f, cx, cy, k1, k2
+                case 4: numParams = 8;
+                    break; // OPENCV: fx, fy, cx, cy, k1, k2, p1, p2
+                case 5: numParams = 12;
+                    break; // OPENCV_FISHEYE: fx, fy, cx, cy, k1, k2, k3, k4, k5, k6, k7, k8
+                case 6: numParams = 5;
+                    break; // FULL_OPENCV: fx, fy, cx, cy, k1, k2, p1, p2, k3, k4, k5, k6
+                default:
+                    Logger::warn("Unknown camera model ID: " + std::to_string(def.model_id));
+                    numParams = 3; // Fallback
+                }
 
-                std::vector<double> params(numParams);
-                camFile.read(reinterpret_cast<char*>(params.data()), numParams * sizeof(double));
-                cameraParams[cam_id] = params;
+                def.params.resize(numParams);
+                camFile.read(reinterpret_cast<char*>(def.params.data()), numParams * sizeof(double));
+
+                cameraDefs[cam_id] = def;
             }
         }
 
@@ -239,9 +263,7 @@ namespace sfmeditor {
             glm::vec3 t(static_cast<float>(tx), static_cast<float>(ty), static_cast<float>(tz));
 
             glm::mat3 R = glm::mat3_cast(q);
-
             glm::vec3 cameraCenter = -glm::transpose(R) * t;
-
             glm::quat cameraOrientation = glm::quat_cast(glm::transpose(R));
 
             cam.cameraID = camera_id;
@@ -249,10 +271,32 @@ namespace sfmeditor {
             cam.position = cameraCenter;
             cam.orientation = cameraOrientation;
 
-            if (cameraParams.contains(camera_id) && !cameraParams[camera_id].empty()) {
-                cam.focalLength = static_cast<float>(cameraParams[camera_id][0]);
+            if (cameraDefs.contains(camera_id)) {
+                const auto& def = cameraDefs[camera_id];
+                cam.modelId = def.model_id;
+                cam.width = def.width;
+                cam.height = def.height;
+                cam.extraParams = def.params;
+
+                if (def.model_id == 0 || def.model_id == 2 || def.model_id == 3) {
+                    // f, cx, cy
+                    cam.focalLength = static_cast<float>(def.params[0]);
+                    cam.focalLengthY = cam.focalLength;
+                    cam.principalPointX = static_cast<float>(def.params[1]);
+                    cam.principalPointY = static_cast<float>(def.params[2]);
+                } else if (def.model_id == 1 || def.model_id == 4) {
+                    // fx, fy, cx, cy
+                    cam.focalLength = static_cast<float>(def.params[0]);
+                    cam.focalLengthY = static_cast<float>(def.params[1]);
+                    cam.principalPointX = static_cast<float>(def.params[2]);
+                    cam.principalPointY = static_cast<float>(def.params[3]);
+                }
             } else {
+                cam.modelId = -1;
+                cam.width = 1920;
+                cam.height = 1080;
                 cam.focalLength = 1000.0f;
+                cam.focalLengthY = 1000.0f;
             }
 
             scene.cameras[image_id] = cam;

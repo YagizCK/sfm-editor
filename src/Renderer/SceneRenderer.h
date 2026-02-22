@@ -37,7 +37,7 @@ namespace sfmeditor {
 
         void initBuffers(const std::vector<Point>& points);
 
-        void updateBuffers(std::vector<Point>& points, EditorSystem* editorSystem) const;
+        void updateBuffers(std::vector<Point>& points, EditorSystem* editorSystem);
 
         void render(const std::vector<Point>& points, const SceneProperties* props, const EditorCamera* camera) const;
 

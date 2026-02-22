@@ -60,11 +60,11 @@ namespace sfmeditor {
                     return;
                 }
                 if (key == SFM_KEY_Z) {
-                    Logger::info("Undo action requested (Not fully implemented yet).");
+                    m_editorSystem->getActionHistory()->undo();
                     return;
                 }
                 if (key == SFM_KEY_Y || (Input::isKeyPressed(SFM_KEY_LEFT_SHIFT) && key == SFM_KEY_Z)) {
-                    Logger::info("Redo action requested (Not fully implemented yet).");
+                    m_editorSystem->getActionHistory()->redo();
                 }
             }
         });
@@ -78,7 +78,7 @@ namespace sfmeditor {
         m_grid = std::make_unique<SceneGrid>();
         m_lineRenderer = std::make_unique<LineRenderer>();
         m_camera = std::make_unique<EditorCamera>();
-        m_editorSystem = std::make_unique<EditorSystem>(m_camera.get(), m_lineRenderer.get(), &m_scene.points);
+        m_editorSystem = std::make_unique<EditorSystem>(m_camera.get(), &m_scene);
         m_uiManager = std::make_unique<UIManager>(m_window.get());
         m_uiManager->initPanels(m_sceneProperties.get(), m_camera.get(), &m_scene, m_editorSystem.get());
 
@@ -137,7 +137,7 @@ namespace sfmeditor {
                     static_cast<int>(viewportInfo.size.y)
                 );
 
-                m_editorSystem->processPickedID(pickedID, isCtrl);
+                m_editorSystem->getSelectionManager()->processPickedID(pickedID, isCtrl);
                 m_editorSystem->pendingPickedID = false;
             }
 
@@ -150,6 +150,51 @@ namespace sfmeditor {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             m_grid->draw(m_sceneProperties, m_camera);
+            m_lineRenderer->clear();
+
+            const float camSize = m_sceneProperties->cameraSize;
+
+            for (const auto& [image_id, cam] : m_scene.cameras) {
+                if (m_editorSystem->isolatedCameraID != 0) {
+                    continue;
+                }
+
+                bool isSelected = std::find(m_editorSystem->getSelectionManager()->selectedCameraIDs.begin(),
+                                            m_editorSystem->getSelectionManager()->selectedCameraIDs.end(),
+                                            image_id) != m_editorSystem->getSelectionManager()->selectedCameraIDs.end();
+
+                glm::vec3 camColor = isSelected ? glm::vec3(1.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.5f, 0.0f);
+
+                glm::mat4 rotationMatrix = glm::mat4_cast(cam.orientation);
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), cam.position) * rotationMatrix;
+
+                auto center = glm::vec3(model * glm::vec4(0, 0, 0, 1));
+
+                float aspectRatio = 1.0f;
+                if (cam.height > 0 && cam.width > 0) {
+                    aspectRatio = static_cast<float>(cam.width) / static_cast<float>(cam.height);
+                }
+
+                float w = camSize * aspectRatio;
+                float h = camSize;
+                float z = camSize * 2.0f;
+
+                auto tl = glm::vec3(model * glm::vec4(-w, -h, z, 1.0f));
+                auto tr = glm::vec3(model * glm::vec4(w, -h, z, 1.0f));
+                auto bl = glm::vec3(model * glm::vec4(-w, h, z, 1.0f));
+                auto br = glm::vec3(model * glm::vec4(w, h, z, 1.0f));
+
+                m_lineRenderer->addLine(center, tl, camColor, 0.0f);
+                m_lineRenderer->addLine(center, tr, camColor, 0.0f);
+                m_lineRenderer->addLine(center, bl, camColor, 0.0f);
+                m_lineRenderer->addLine(center, br, camColor, 0.0f);
+
+                m_lineRenderer->addLine(tl, tr, camColor, 0.0f);
+                m_lineRenderer->addLine(tr, br, camColor, 0.0f);
+                m_lineRenderer->addLine(br, bl, camColor, 0.0f);
+                m_lineRenderer->addLine(bl, tl, camColor, 0.0f);
+            }
+
             m_lineRenderer->draw(m_camera);
             m_renderer->render(m_scene.points, m_sceneProperties.get(), m_camera.get());
 
@@ -163,7 +208,9 @@ namespace sfmeditor {
             m_uiManager->renderMainMenuBar(
                 [this]() { onImportMap(); },
                 [this]() { onSaveMap(); },
-                [this]() { onExit(); }
+                [this]() { onExit(); },
+                [this]() { m_editorSystem->getActionHistory()->undo(); },
+                [this]() { m_editorSystem->getActionHistory()->redo(); }
             );
             m_uiManager->getViewportPanel()->setTextureID(m_framebuffer->getTextureID());
             m_uiManager->renderPanels();
@@ -198,36 +245,8 @@ namespace sfmeditor {
         }
 
         m_scene = newScene;
-        m_editorSystem->resetState();
+        m_editorSystem->getSelectionManager()->resetState();
         m_renderer->initBuffers(m_scene.points);
-
-        m_lineRenderer->clear();
-
-        constexpr float camScale = 0.1f;
-        constexpr glm::vec3 camColor = {1.0f, 0.5f, 0.0f};
-
-        for (const auto& [image_id, cam] : m_scene.cameras) {
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), cam.position) * glm::mat4_cast(cam.orientation);
-
-            auto center = glm::vec3(model * glm::vec4(0, 0, 0, 1));
-
-            auto forward = glm::vec3(model * glm::vec4(0, 0, camScale * 2.0f, 1));
-
-            auto tl = glm::vec3(model * glm::vec4(-camScale, -camScale, camScale * 2.0f, 1));
-            auto tr = glm::vec3(model * glm::vec4(camScale, -camScale, camScale * 2.0f, 1));
-            auto bl = glm::vec3(model * glm::vec4(-camScale, camScale, camScale * 2.0f, 1));
-            auto br = glm::vec3(model * glm::vec4(camScale, camScale, camScale * 2.0f, 1));
-
-            m_lineRenderer->addLine(center, tl, camColor);
-            m_lineRenderer->addLine(center, tr, camColor);
-            m_lineRenderer->addLine(center, bl, camColor);
-            m_lineRenderer->addLine(center, br, camColor);
-
-            m_lineRenderer->addLine(tl, tr, camColor);
-            m_lineRenderer->addLine(tr, br, camColor);
-            m_lineRenderer->addLine(br, bl, camColor);
-            m_lineRenderer->addLine(bl, tl, camColor);
-        }
 
         Logger::info(std::format("Successfully loaded {} points and {} cameras.", m_scene.points.size(),
                                  m_scene.cameras.size()));

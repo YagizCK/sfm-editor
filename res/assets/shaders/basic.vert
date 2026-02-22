@@ -11,6 +11,11 @@ out vec3 vColor;
 out float vSelected;
 
 void main() {
+    if (aSelected < -0.5) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 0.0); 
+        return;
+    }
+
     vColor = aColor;
     vSelected = aSelected;
 

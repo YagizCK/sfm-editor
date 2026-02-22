@@ -60,7 +60,7 @@ namespace sfmeditor {
             }
         }
 
-        if (m_editorSystem->hasSelection() && m_editorSystem->gizmoOperation != -1) {
+        if (m_editorSystem->getSelectionManager()->hasSelection() && m_editorSystem->gizmoOperation != -1) {
             ImGuizmo::SetOrthographic(m_camera->projectionMode == ProjectionMode::Orthographic);
             ImGuizmo::SetDrawlist();
             ImGuizmo::SetRect(
@@ -70,12 +70,20 @@ namespace sfmeditor {
 
             glm::mat4 viewMatrix = m_camera->getViewMatrix();
             glm::mat4 projectionMatrix = m_camera->getProjection();
+
+            float snapValues[3] = {0.0f, 0.0f, 0.0f};
+            if (m_editorSystem->useSnap) {
+                m_editorSystem->getSnapValues(snapValues);
+            }
+
             ImGuizmo::Manipulate(
                 glm::value_ptr(viewMatrix),
                 glm::value_ptr(projectionMatrix),
                 static_cast<ImGuizmo::OPERATION>(m_editorSystem->gizmoOperation),
                 ImGuizmo::MODE::WORLD,
-                glm::value_ptr(m_editorSystem->gizmoTransform)
+                glm::value_ptr(m_editorSystem->gizmoTransform),
+                nullptr,
+                m_editorSystem->useSnap ? snapValues : nullptr
             );
         }
 

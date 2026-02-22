@@ -41,7 +41,8 @@ namespace sfmeditor {
         void endFrame() const;
 
         void renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
-                               const std::function<void()>& onExit);
+                               const std::function<void()>& onExit, const std::function<void()>& onUndo,
+                               const std::function<void()>& onRedo);
 
         void renderPanels() const;
 

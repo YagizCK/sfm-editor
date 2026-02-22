@@ -69,7 +69,7 @@ namespace sfmeditor {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    void SceneRenderer::updateBuffers(std::vector<Point>& points, EditorSystem* editorSystem) const {
+    void SceneRenderer::updateBuffers(std::vector<Point>& points, EditorSystem* editorSystem) {
         if (points.empty()) return;
 
         glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
@@ -77,73 +77,17 @@ namespace sfmeditor {
         const size_t totalPoints = points.size();
         const float threshold = totalPoints * m_thresholdFactor;
 
-        if (editorSystem->pendingSelection) {
-            editorSystem->pendingSelection = false;
-            auto& changed = editorSystem->changedIndices;
-            if (!changed.empty()) {
-                if (changed.size() < threshold) {
-                    for (const unsigned int idx : changed) {
-                        const size_t offset = (idx * sizeof(Point)) + offsetof(Point, selected);
-                        glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(float), &points[idx].selected);
-                    }
-                } else {
-                    glBufferSubData(GL_ARRAY_BUFFER, 0, totalPoints * sizeof(Point), points.data());
+        auto& changed = editorSystem->getSelectionManager()->changedIndices;
+
+        if (!changed.empty()) {
+            if (changed.size() < threshold) {
+                for (const unsigned int idx : changed) {
+                    glBufferSubData(GL_ARRAY_BUFFER, idx * sizeof(Point), sizeof(Point), &points[idx]);
                 }
-                changed.clear();
+            } else {
+                glBufferSubData(GL_ARRAY_BUFFER, 0, totalPoints * sizeof(Point), points.data());
             }
-        }
-
-        if (editorSystem->hasSelection()) {
-            const auto& selected = editorSystem->selectedPointIndices;
-            const size_t selectionCount = selected.size();
-
-            const glm::mat4 currentTransform = editorSystem->gizmoTransform;
-            const glm::mat4 lastTransform = editorSystem->gizmoLastTransform;
-
-            bool isMatrixChanged = false;
-            for (int i = 0; i < 4; ++i) {
-                for (int j = 0; j < 4; ++j) {
-                    if (std::abs(currentTransform[i][j] - lastTransform[i][j]) > 1e-5f) {
-                        isMatrixChanged = true;
-                        break;
-                    }
-                }
-                if (isMatrixChanged) break;
-            }
-
-            if (isMatrixChanged) {
-                const glm::mat4 deltaTransform = currentTransform * glm::inverse(lastTransform);
-
-                for (const unsigned int idx : selected) {
-                    const auto pos = glm::vec4(points[idx].position, 1.0f);
-                    points[idx].position = glm::vec3(deltaTransform * pos);
-                }
-
-                if (selectionCount < threshold) {
-                    for (const unsigned int idx : selected) {
-                        glBufferSubData(GL_ARRAY_BUFFER, idx * sizeof(Point), sizeof(glm::vec3), &points[idx].position);
-                    }
-                } else {
-                    glBufferSubData(GL_ARRAY_BUFFER, 0, totalPoints * sizeof(Point), points.data());
-                }
-
-                editorSystem->gizmoLastTransform = currentTransform;
-            }
-
-            if (editorSystem->pendingDeletion) {
-                editorSystem->pendingDeletion = false;
-                std::erase_if(points, [](const Point& p) { return p.selected > 0.5f; });
-
-                const size_t newSize = points.size();
-                if (selectionCount < threshold) {
-                    glBufferSubData(GL_ARRAY_BUFFER, 0, newSize * sizeof(Point), points.data());
-                } else {
-                    glBufferData(GL_ARRAY_BUFFER, newSize * sizeof(Point), points.data(), GL_DYNAMIC_DRAW);
-                }
-                editorSystem->selectedPointIndices.clear();
-                editorSystem->changedIndices.clear();
-                Logger::info(std::format("{} points deleted.", selectionCount));
-            }
+            changed.clear();
         }
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);

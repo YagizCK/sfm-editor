@@ -240,6 +240,16 @@ namespace sfmeditor {
         return Ray{position, rayWorld};
     }
 
+    void EditorCamera::teleportTo(const glm::vec3& newPos, const glm::quat& newOr) {
+        position = newPos;
+        orientation = newOr;
+        updateEulerAngles();
+        if (cameraStyle == CameraStyle::Orbit) {
+            position = focalPoint - (getForwardVector() * distance);
+        }
+        updateView();
+    }
+
     void EditorCamera::updateEulerAngles() {
         const glm::vec3 euler = glm::eulerAngles(orientation);
         pitch = glm::degrees(euler.x);

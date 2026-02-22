@@ -57,8 +57,15 @@ namespace sfmeditor {
         std::string imageName;
         glm::vec3 position;
         glm::quat orientation;
-        float focalLength;
         std::vector<Point2D> features;
+        int modelId = 0;
+        uint64_t width = 1920;
+        uint64_t height = 1080;
+        float focalLength = 1000.0f;
+        float focalLengthY = 1000.0f;
+        float principalPointX = 960.0f;
+        float principalPointY = 540.0f;
+        std::vector<double> extraParams;
     };
 
     struct SfMScene {
@@ -73,6 +80,7 @@ namespace sfmeditor {
         bool showGrid = true;
         bool showAxes = true;
         float pointSize = 6.0f;
+        float cameraSize = 0.15f;
     };
 
     struct Ray {

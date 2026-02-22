@@ -39,11 +39,17 @@ namespace sfmeditor {
         std::ofstream file(filepath, std::ios::binary);
         if (!file) return false;
 
-        const uint64_t numPoints = scene.points.size();
-        file.write(reinterpret_cast<const char*>(&numPoints), sizeof(uint64_t));
+        uint64_t actualNumPoints = 0;
+        for (const auto& p : scene.points) {
+            if (p.selected >= -0.5f) actualNumPoints++;
+        }
 
-        for (size_t i = 0; i < numPoints; ++i) {
+        file.write(reinterpret_cast<const char*>(&actualNumPoints), sizeof(uint64_t));
+
+        for (size_t i = 0; i < scene.points.size(); ++i) {
             const auto& p = scene.points[i];
+
+            if (p.selected < -0.5f) continue;
 
             const bool hasMeta = (i < scene.metadata.size());
 
@@ -81,9 +87,14 @@ namespace sfmeditor {
         std::ofstream out(filepath);
         if (!out) return false;
 
+        size_t actualNumPoints = 0;
+        for (const auto& p : scene.points) {
+            if (p.selected >= -0.5f) actualNumPoints++;
+        }
+
         out << "ply\n";
         out << "format ascii 1.0\n";
-        out << "element vertex " << scene.points.size() << "\n";
+        out << "element vertex " << actualNumPoints << "\n";
         out << "property float x\n";
         out << "property float y\n";
         out << "property float z\n";
@@ -93,6 +104,8 @@ namespace sfmeditor {
         out << "end_header\n";
 
         for (const auto& p : scene.points) {
+            if (p.selected < -0.5f) continue;
+
             out << p.position.x << " " << p.position.y << " " << p.position.z << " "
                 << static_cast<int>(p.color.r * 255) << " "
                 << static_cast<int>(p.color.g * 255) << " "
@@ -107,6 +120,8 @@ namespace sfmeditor {
         if (!out) return false;
         out << "# SFM Editor Export\n";
         for (const auto& p : scene.points) {
+            if (p.selected < -0.5f) continue;
+
             out << "v " << p.position.x << " " << p.position.y << " " << p.position.z << " "
                 << p.color.r << " " << p.color.g << " " << p.color.b << "\n";
         }
@@ -118,6 +133,8 @@ namespace sfmeditor {
         std::ofstream out(filepath);
         if (!out) return false;
         for (const auto& p : scene.points) {
+            if (p.selected < -0.5f) continue;
+
             out << p.position.x << " " << p.position.y << " " << p.position.z << " "
                 << static_cast<int>(p.color.r * 255) << " "
                 << static_cast<int>(p.color.g * 255) << " "

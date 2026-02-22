@@ -16,17 +16,24 @@
 
 #include "EditorSystem.h"
 
-#include <format>
-
 #include "Input.h"
 #include "KeyCodes.hpp"
 #include "Logger.h"
 #include "Core/Events.hpp"
 
+#include <format>
+
 
 namespace sfmeditor {
-    EditorSystem::EditorSystem(EditorCamera* camera, LineRenderer* lineRenderer, std::vector<Point>* points)
-        : m_camera(camera), m_lineRenderer(lineRenderer), m_points(points) {
+    EditorSystem::EditorSystem(EditorCamera* camera, SfMScene* scene)
+        : m_camera(camera), m_scene(scene) {
+        m_selectionManager = std::make_unique<SelectionManager>(this, scene);
+        m_actionHistory = std::make_unique<ActionHistory>(this, m_selectionManager.get(), scene);
+
+        setupInputCallbacks();
+    }
+
+    void EditorSystem::setupInputCallbacks() {
         Events::onMouseButton.connect([this](const int button, const int action) {
             if (!m_viewportInfo.focused || !m_viewportInfo.hovered) return;
 
@@ -35,25 +42,58 @@ namespace sfmeditor {
                     boxSelecting = true;
                     boxStart = Input::getVpRelativeMousePos(m_viewportInfo);
                     boxEnd = boxStart;
-                } else if (action == SFM_RELEASE) {
+                } else if (action == SFM_RELEASE && boxSelecting) {
                     boxSelecting = false;
-
                     const glm::vec2 end = Input::getVpRelativeMousePos(m_viewportInfo);
-                    const glm::vec2 d = glm::abs(end - boxStart);
 
-                    if (const float distSq = glm::dot(d, d); distSq < m_boxSelectSqThreshold) {
-                        pendingPickedID = true;
+                    if (glm::dot(glm::abs(end - boxStart), glm::abs(end - boxStart)) < m_boxSelectSqThreshold) {
+                        uint32_t hitCameraID = 0;
+                        float minDepth = FLT_MAX;
+                        const glm::mat4 vp = m_camera->getViewProjection();
+
+                        for (const auto& [id, cam] : m_scene->cameras) {
+                            glm::vec4 clipPos = vp * glm::vec4(cam.position, 1.0f);
+                            if (clipPos.w > 0.01f) {
+                                glm::vec2 ndc = glm::vec2(clipPos.x, clipPos.y) / clipPos.w;
+                                glm::vec2 screenPos = {
+                                    (ndc.x * 0.5f + 0.5f) * m_viewportInfo.size.x,
+                                    (0.5f - ndc.y * 0.5f) * m_viewportInfo.size.y
+                                };
+                                if (glm::distance(screenPos, end) < 25.0f && clipPos.w < minDepth) {
+                                    minDepth = clipPos.w;
+                                    hitCameraID = id;
+                                }
+                            }
+                        }
+
+                        if (hitCameraID != 0) {
+                            const bool isCtrl = Input::isKeyPressed(SFM_KEY_LEFT_CONTROL);
+                            if (!isCtrl) m_selectionManager->clearSelection();
+
+                            auto& camList = m_selectionManager->selectedCameraIDs;
+                            if (std::find(camList.begin(), camList.end(), hitCameraID) != camList.
+                                end())
+                                m_selectionManager->removeCameraFromSelection(hitCameraID);
+                            else m_selectionManager->addCameraToSelection(hitCameraID);
+                            updateGizmoCenter();
+                        } else {
+                            pendingPickedID = true;
+                        }
                     } else {
                         boxEnd = end;
-                        processBoxSelection(m_camera->getViewProjection(), Input::isKeyPressed(SFM_KEY_LEFT_CONTROL));
+                        m_selectionManager->processBoxSelection(m_camera->getViewProjection(), m_viewportInfo, boxStart,
+                                                                boxEnd, Input::isKeyPressed(SFM_KEY_LEFT_CONTROL));
                     }
                 }
             }
         });
 
         Events::onKey.connect([this](const int key, const int action) {
-            if (!m_viewportInfo.focused) return;
-            if (action != SFM_PRESS) return;
+            if (!m_viewportInfo.focused || action != SFM_PRESS) return;
+
+            if (Input::isKeyPressed(SFM_KEY_LEFT_CONTROL) && key == SFM_KEY_A) {
+                m_selectionManager->selectAll();
+            }
 
             if (!Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
                 switch (key) {
@@ -68,8 +108,8 @@ namespace sfmeditor {
                 }
             }
 
-            if (key == SFM_KEY_DELETE && hasSelection()) {
-                pendingDeletion = true;
+            if (key == SFM_KEY_DELETE && m_selectionManager->hasSelection()) {
+                m_actionHistory->executeDelete();
             }
         });
     }
@@ -77,123 +117,115 @@ namespace sfmeditor {
     void EditorSystem::onUpdate(const ViewportInfo& viewportInfo) {
         m_viewportInfo = viewportInfo;
 
+        const bool isUsingGizmo = ImGuizmo::IsUsing();
+
+        if (isUsingGizmo && !m_wasUsingGizmo) {
+            m_dragStartStates.clear();
+            m_dragStartCamStates.clear();
+            for (const unsigned int idx : m_selectionManager->selectedPointIndices) {
+                m_dragStartStates.push_back({idx, m_scene->points[idx].position, m_scene->points[idx].selected});
+            }
+            for (const unsigned int id : m_selectionManager->selectedCameraIDs) {
+                if (m_scene->cameras.contains(id)) m_dragStartCamStates.push_back({id, m_scene->cameras.at(id)});
+            }
+        } else if (!isUsingGizmo && m_wasUsingGizmo) {
+            std::vector<PointState> newPointStates;
+            std::vector<std::pair<uint32_t, CameraPose>> newCamStates;
+
+            for (const unsigned int idx : m_selectionManager->selectedPointIndices) {
+                newPointStates.push_back({idx, m_scene->points[idx].position, m_scene->points[idx].selected});
+            }
+            for (const unsigned int id : m_selectionManager->selectedCameraIDs) {
+                if (m_scene->cameras.contains(id)) newCamStates.push_back({id, m_scene->cameras.at(id)});
+            }
+
+            m_actionHistory->recordTransformAction(m_dragStartStates, newPointStates, m_dragStartCamStates,
+                                                   newCamStates);
+        }
+        m_wasUsingGizmo = isUsingGizmo;
+
+        if (m_selectionManager->hasSelection() && gizmoOperation != -1 && isUsingGizmo) {
+            bool isMatrixChanged = false;
+            for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    if (std::abs(gizmoTransform[i][j] - gizmoLastTransform[i][j]) > 1e-5f) {
+                        isMatrixChanged = true;
+                        break;
+                    }
+                }
+                if (isMatrixChanged) break;
+            }
+
+            if (isMatrixChanged) {
+                const glm::mat4 deltaTransform = gizmoTransform * glm::inverse(gizmoLastTransform);
+                const glm::quat deltaRot = glm::quat_cast(deltaTransform);
+
+                for (const unsigned int idx : m_selectionManager->selectedPointIndices) {
+                    m_scene->points[idx].position = glm::vec3(
+                        deltaTransform * glm::vec4(m_scene->points[idx].position, 1.0f));
+                    m_selectionManager->markAsChanged(idx);
+                }
+
+                for (const uint32_t camID : m_selectionManager->selectedCameraIDs) {
+                    if (m_scene->cameras.contains(camID)) {
+                        auto& cam = m_scene->cameras.at(camID);
+                        cam.position = glm::vec3(deltaTransform * glm::vec4(cam.position, 1.0f));
+                        cam.orientation = glm::normalize(deltaRot * cam.orientation);
+                    }
+                }
+
+                gizmoLastTransform = gizmoTransform;
+            }
+        }
+
         if (boxSelecting) {
             const glm::vec2 end = Input::getVpRelativeMousePos(m_viewportInfo);
-            const glm::vec2 d = glm::abs(end - boxStart);
-
-            if (const float distSq = glm::dot(d, d); distSq >= m_boxSelectSqThreshold) {
+            if (glm::dot(glm::abs(end - boxStart), glm::abs(end - boxStart)) >= m_boxSelectSqThreshold) {
                 boxEnd = end;
             }
         }
     }
 
-    bool EditorSystem::hasSelection() const {
-        return !selectedPointIndices.empty();
-    }
-
-    void EditorSystem::clearSelection() {
-        for (const unsigned int idx : selectedPointIndices) {
-            if (m_points->size() > idx) {
-                (*m_points)[idx].selected = 0.0f;
-                changedIndices.push_back(idx);
-            }
-        }
-        selectedPointIndices.clear();
-
-        pendingSelection = true;
-    }
-
-    void EditorSystem::resetState() {
-        boxSelecting = false;
-        pendingPickedID = false;
-        pendingSelection = false;
-        pendingDeletion = false;
-        selectedPointIndices.clear();
-        changedIndices.clear();
-    }
-
-    void EditorSystem::processPickedID(const int pickedID, const bool isCtrlPressed) {
-        if (!isCtrlPressed) clearSelection();
-
-        if (pickedID < 0 || pickedID >= m_points->size()) {
-            return;
-        }
-
-        if (isCtrlPressed && (*m_points)[pickedID].selected > 0.5f) {
-            (*m_points)[pickedID].selected = 0.0f;
-            changedIndices.push_back(pickedID);
-            std::erase(selectedPointIndices, static_cast<unsigned int>(pickedID));
-        } else if ((*m_points)[pickedID].selected < 0.5f) {
-            selectedPointIndices.push_back(pickedID);
-            (*m_points)[pickedID].selected = 1.0f;
-            changedIndices.push_back(pickedID);
-        }
-
-        pendingSelection = true;
-
-        updateGizmoCenter();
-    }
-
-    void EditorSystem::processBoxSelection(const glm::mat4& vpMatrix, const bool isCtrlPressed) {
-        if (!isCtrlPressed) clearSelection();
-
-        const float vpW = m_viewportInfo.size.x;
-        const float vpH = m_viewportInfo.size.y;
-
-        const float ndcMinX = (std::min(boxStart.x, boxEnd.x) / vpW) * 2.0f - 1.0f;
-        const float ndcMaxX = (std::max(boxStart.x, boxEnd.x) / vpW) * 2.0f - 1.0f;
-
-        const float ndcMinY = 1.0f - (std::max(boxStart.y, boxEnd.y) / vpH) * 2.0f;
-        const float ndcMaxY = 1.0f - (std::min(boxStart.y, boxEnd.y) / vpH) * 2.0f;
-
-        const auto rowX = glm::vec4(vpMatrix[0][0], vpMatrix[1][0], vpMatrix[2][0], vpMatrix[3][0]);
-        const auto rowY = glm::vec4(vpMatrix[0][1], vpMatrix[1][1], vpMatrix[2][1], vpMatrix[3][1]);
-        const auto rowW = glm::vec4(vpMatrix[0][3], vpMatrix[1][3], vpMatrix[2][3], vpMatrix[3][3]);
-
-        const unsigned int pointCount = static_cast<unsigned int>(m_points->size());
-
-        for (unsigned int i = 0; i < pointCount; ++i) {
-            const glm::vec3& p = (*m_points)[i].position;
-
-            const float w = rowW.x * p.x + rowW.y * p.y + rowW.z * p.z + rowW.w;
-            if (w <= 0.0f) continue;
-
-            const float x = rowX.x * p.x + rowX.y * p.y + rowX.z * p.z + rowX.w;
-            if (x < ndcMinX * w || x > ndcMaxX * w) continue;
-
-            const float y = rowY.x * p.x + rowY.y * p.y + rowY.z * p.z + rowY.w;
-            if (y < ndcMinY * w || y > ndcMaxY * w) continue;
-
-            if (isCtrlPressed && (*m_points)[i].selected > 0.5f) {
-                (*m_points)[i].selected = 0.0f;
-                changedIndices.push_back(i);
-            } else if ((*m_points)[i].selected < 0.5f) {
-                selectedPointIndices.push_back(i);
-                (*m_points)[i].selected = 1.0f;
-                changedIndices.push_back(i);
-            }
-        }
-
-        std::erase_if(selectedPointIndices, [&](const unsigned int idx) {
-            return (*m_points)[idx].selected < 0.5f;
-        });
-
-        pendingSelection = true;
-
-        updateGizmoCenter();
-    }
-
     void EditorSystem::updateGizmoCenter() {
-        if (hasSelection()) {
-            Logger::info(std::to_string(selectedPointIndices.size()) + " points selected.");
+        if (m_selectionManager->hasSelection()) {
             glm::vec3 center(0.0f);
-            for (const unsigned int idx : selectedPointIndices) {
-                center += (*m_points)[idx].position;
+            float count = 0;
+            for (const unsigned int idx : m_selectionManager->selectedPointIndices) {
+                if (m_scene->points[idx].selected > -0.5f) {
+                    center += m_scene->points[idx].position;
+                    count++;
+                }
             }
-            center /= static_cast<float>(selectedPointIndices.size());
+            for (const uint32_t id : m_selectionManager->selectedCameraIDs) {
+                if (m_scene->cameras.contains(id)) {
+                    center += m_scene->cameras.at(id).position;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                center /= count;
+            } else {
+                center = glm::vec3(0.0f);
+            }
 
             gizmoTransform = glm::translate(glm::mat4(1.0f), center);
             gizmoLastTransform = gizmoTransform;
+        }
+    }
+
+    void EditorSystem::getSnapValues(float* snapArray) const {
+        if (gizmoOperation == ImGuizmo::TRANSLATE) {
+            snapArray[0] = snapTranslation;
+            snapArray[1] = snapTranslation;
+            snapArray[2] = snapTranslation;
+        } else if (gizmoOperation == ImGuizmo::ROTATE) {
+            snapArray[0] = snapRotation;
+            snapArray[1] = snapRotation;
+            snapArray[2] = snapRotation;
+        } else if (gizmoOperation == ImGuizmo::SCALE) {
+            snapArray[0] = snapScale;
+            snapArray[1] = snapScale;
+            snapArray[2] = snapScale;
         }
     }
 }

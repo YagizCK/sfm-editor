@@ -79,7 +79,8 @@ namespace sfmeditor {
     }
 
     void UIManager::renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
-                                      const std::function<void()>& onExit) {
+                                      const std::function<void()>& onExit, const std::function<void()>& onUndo,
+                                      const std::function<void()>& onRedo) {
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("Import Map...", "Ctrl+O")) { if (onImport) onImport(); }
@@ -91,8 +92,8 @@ namespace sfmeditor {
             }
 
             if (ImGui::BeginMenu("Edit")) {
-                ImGui::MenuItem("Undo", "Ctrl+Z", false, false);
-                ImGui::MenuItem("Redo", "Ctrl+Y", false, false);
+                if (ImGui::MenuItem("Undo", "Ctrl+Z")) { if (onUndo) onUndo(); }
+                if (ImGui::MenuItem("Redo", "Ctrl+Y")) { if (onRedo) onRedo(); }
                 ImGui::EndMenu();
             }
 

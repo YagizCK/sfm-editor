@@ -20,7 +20,7 @@
 #include "Core/Types.hpp"
 #include "Core/EditorSystem.h"
 #include "Renderer/EditorCamera.h"
-#include <memory>
+
 #include <string>
 #include <unordered_map>
 
@@ -42,6 +42,9 @@ namespace sfmeditor {
 
     private:
         UITexture getOrLoadImage(const std::string& filepath);
+
+        void renderImageWithTooltip(const UITexture& tex, const std::string& imgName, uint32_t image_id = 0,
+                                    int point2D_idx = -1);
 
         SceneProperties* m_sceneProperties;
         EditorCamera* m_camera;

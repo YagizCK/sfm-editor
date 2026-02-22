@@ -18,8 +18,6 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <imgui.h>
-#include <ImGuizmo.h>
 
 #include "Core/Types.hpp"
 
@@ -87,6 +85,8 @@ namespace sfmeditor {
         void setCameraStyle(CameraStyle style);
 
         Ray castRay(float mouseX, float mouseY, float viewportWidth, float viewportHeight) const;
+
+        void teleportTo(const glm::vec3& newPos, const glm::quat& newOr);
 
     private:
         void updateEulerAngles();
