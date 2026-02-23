@@ -17,6 +17,9 @@
 #include "UIManager.h"
 
 #include "Core/Window.h"
+#include "Panels/ConsolePanel.h"
+#include "Panels/AnalyticsPanel.h"
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <backends/imgui_impl_glfw.h>
@@ -58,6 +61,10 @@ namespace sfmeditor {
 
         m_otherPanels.push_back(std::make_unique<PropertiesPanel>(sceneProperties, camera, scene, editorSystem));
         m_otherPanels.push_back(std::make_unique<ConsolePanel>());
+
+        auto analyticsPanel = std::make_unique<AnalyticsPanel>(scene, editorSystem);
+        m_analyticsPanel = analyticsPanel.get();
+        m_otherPanels.push_back(std::move(analyticsPanel));
     }
 
     void UIManager::beginFrame() {
@@ -112,6 +119,12 @@ namespace sfmeditor {
             }
 
             if (ImGui::BeginMenu("View")) {
+                if (m_analyticsPanel) {
+                    ImGui::MenuItem("Analytics & Filtering", nullptr, &m_analyticsPanel->isOpen);
+                }
+
+                ImGui::Separator();
+
                 if (ImGui::MenuItem("Reset Layout")) {
                     m_resetLayout = true;
                 }
@@ -172,11 +185,15 @@ namespace sfmeditor {
             const ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.25f, nullptr,
                                                                     &dockMainID);
 
+            const ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.30f, nullptr,
+                                                                   &dockMainID);
+
             const ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.25f, nullptr,
                                                                      &dockMainID);
 
             ImGui::DockBuilderDockWindow("Viewport", dockMainID);
             ImGui::DockBuilderDockWindow("Properties", dockRightID);
+            ImGui::DockBuilderDockWindow("Analytics & Filtering", dockLeftID);
             ImGui::DockBuilderDockWindow("Logs", dockBottomID);
 
             ImGui::DockBuilderFinish(dockspaceID);

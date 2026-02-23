@@ -40,8 +40,8 @@ namespace sfmeditor {
         std::vector<PointState> oldStates;
         std::vector<PointState> newStates;
 
-        std::vector<std::pair<uint32_t, CameraPose>> oldCamStates;
-        std::vector<std::pair<uint32_t, CameraPose>> newCamStates;
+        std::vector<std::pair<uint32_t, CameraPose>> oldImages;
+        std::vector<std::pair<uint32_t, CameraPose>> newImages;
     };
 
     class SelectionManager;
@@ -52,8 +52,8 @@ namespace sfmeditor {
 
         void recordTransformAction(const std::vector<PointState>& oldPoints,
                                    const std::vector<PointState>& newPoints,
-                                   const std::vector<std::pair<uint32_t, CameraPose>>& oldCams,
-                                   const std::vector<std::pair<uint32_t, CameraPose>>& newCams);
+                                   const std::vector<std::pair<uint32_t, CameraPose>>& oldImages,
+                                   const std::vector<std::pair<uint32_t, CameraPose>>& newImages);
         void executeDelete();
         void undo();
         void redo();

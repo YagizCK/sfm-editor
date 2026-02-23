@@ -53,12 +53,8 @@ namespace sfmeditor {
         uint64_t point3D_id = static_cast<uint64_t>(-1);
     };
 
-    struct CameraPose {
+    struct Camera {
         uint32_t cameraID;
-        std::string imageName;
-        glm::vec3 position;
-        glm::quat orientation;
-        std::vector<Point2D> features;
         int modelId = 0;
         uint64_t width = 1920;
         uint64_t height = 1080;
@@ -69,17 +65,29 @@ namespace sfmeditor {
         std::vector<double> extraParams;
     };
 
+    struct CameraPose {
+        uint32_t imageID;
+        uint32_t cameraID;
+        std::string imageName;
+        glm::vec3 position;
+        glm::quat orientation;
+        std::vector<Point2D> features;
+    };
+
     struct SfMScene {
         std::string imageBasePath;
         std::vector<Point> points;
         std::vector<PointMetadata> metadata;
-        std::unordered_map<uint32_t, CameraPose> cameras;
+        std::unordered_map<uint32_t, Camera> cameras;
+        std::unordered_map<uint32_t, CameraPose> images;
     };
 
     struct SceneProperties {
         glm::vec3 backgroundColor = glm::vec3(0.1f, 0.1f, 0.1f);
         bool showGrid = true;
         bool showAxes = true;
+        bool showPoints = true;
+        bool showCameras = true;
         float pointSize = 6.0f;
         float cameraSize = 0.15f;
     };

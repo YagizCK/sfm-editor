@@ -77,6 +77,10 @@ namespace sfmeditor {
         glUniform1f(glGetUniformLocation(m_rendererID, name.c_str()), value);
     }
 
+    void Shader::setFloatArray(const std::string& name, const float* values, uint32_t count) const {
+        glUniform1fv(glGetUniformLocation(m_rendererID, name.c_str()), count, values);
+    }
+
     void Shader::setVec2(const std::string& name, const glm::vec2& value) const {
         glUniform2fv(glGetUniformLocation(m_rendererID, name.c_str()), 1, &value[0]);
     }

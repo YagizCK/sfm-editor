@@ -48,28 +48,25 @@ namespace sfmeditor {
         uint64_t actualNumPoints;
         extractValidPoints(scene, deletedPointIDs, actualNumPoints);
 
-        // 1. CAMERAS.BIN
         if (std::ofstream camFile(exportDir / "cameras.bin", std::ios::binary); camFile) {
-            auto uniqueCameras = getUniqueCameras(scene);
-            uint64_t numCameras = uniqueCameras.size();
+            uint64_t numCameras = scene.cameras.size();
             camFile.write(reinterpret_cast<const char*>(&numCameras), sizeof(uint64_t));
 
-            for (const auto& [cam_id, camPtr] : uniqueCameras) {
+            for (const auto& [cam_id, camPtr] : scene.cameras) {
                 camFile.write(reinterpret_cast<const char*>(&cam_id), sizeof(uint32_t));
-                camFile.write(reinterpret_cast<const char*>(&camPtr->modelId), sizeof(int));
-                camFile.write(reinterpret_cast<const char*>(&camPtr->width), sizeof(uint64_t));
-                camFile.write(reinterpret_cast<const char*>(&camPtr->height), sizeof(uint64_t));
-                camFile.write(reinterpret_cast<const char*>(camPtr->extraParams.data()),
-                              camPtr->extraParams.size() * sizeof(double));
+                camFile.write(reinterpret_cast<const char*>(&camPtr.modelId), sizeof(int));
+                camFile.write(reinterpret_cast<const char*>(&camPtr.width), sizeof(uint64_t));
+                camFile.write(reinterpret_cast<const char*>(&camPtr.height), sizeof(uint64_t));
+                camFile.write(reinterpret_cast<const char*>(camPtr.extraParams.data()),
+                              camPtr.extraParams.size() * sizeof(double));
             }
         } else return false;
 
-        // 2. IMAGES.BIN
         if (std::ofstream imgFile(exportDir / "images.bin", std::ios::binary); imgFile) {
-            uint64_t numImages = scene.cameras.size();
+            uint64_t numImages = scene.images.size();
             imgFile.write(reinterpret_cast<const char*>(&numImages), sizeof(uint64_t));
 
-            for (const auto& [image_id, cam] : scene.cameras) {
+            for (const auto& [image_id, cam] : scene.images) {
                 imgFile.write(reinterpret_cast<const char*>(&image_id), sizeof(uint32_t));
 
                 glm::quat q_colmap;
@@ -97,7 +94,6 @@ namespace sfmeditor {
             }
         } else return false;
 
-        // 3. POINTS3D.BIN
         if (std::ofstream ptsFile(exportDir / "points3D.bin", std::ios::binary); ptsFile) {
             ptsFile.write(reinterpret_cast<const char*>(&actualNumPoints), sizeof(uint64_t));
 
@@ -143,63 +139,60 @@ namespace sfmeditor {
         uint64_t actualNumPoints;
         extractValidPoints(scene, deletedPointIDs, actualNumPoints);
 
-        // 1. CAMERAS.TXT
         if (std::ofstream camFile(exportDir / "cameras.txt"); camFile) {
-            auto uniqueCameras = getUniqueCameras(scene);
             camFile << "# Camera list with one line of data per camera:\n"
                 << "#   CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[]\n"
-                << "# Number of cameras: " << uniqueCameras.size() << "\n";
+                << "# Number of cameras: " << scene.cameras.size() << "\n";
 
             const char* modelNames[] = {
                 "SIMPLE_PINHOLE", "PINHOLE", "SIMPLE_RADIAL", "RADIAL", "OPENCV", "OPENCV_FISHEYE", "FULL_OPENCV"
             };
             camFile << std::fixed << std::setprecision(6);
 
-            for (const auto& [cam_id, camPtr] : uniqueCameras) {
-                std::string modelStr = (camPtr->modelId >= 0 && camPtr->modelId <= 6)
-                                           ? modelNames[camPtr->modelId]
+            for (const auto& [cam_id, cam] : scene.cameras) {
+                std::string modelStr = (cam.modelId >= 0 && cam.modelId <= 6)
+                                           ? modelNames[cam.modelId]
                                            : "UNKNOWN";
-                camFile << cam_id << " " << modelStr << " " << camPtr->width << " " << camPtr->height;
-                for (double param : camPtr->extraParams) camFile << " " << param;
+                camFile << cam_id << " " << modelStr << " " << cam.width << " " << cam.height;
+                for (double param : cam.extraParams) camFile << " " << param;
                 camFile << "\n";
             }
         } else return false;
 
-        // 2. IMAGES.TXT
         if (std::ofstream imgFile(exportDir / "images.txt"); imgFile) {
             imgFile << "# Image list with two lines of data per image:\n"
                 << "#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n"
                 << "#   POINTS2D[] as (X, Y, POINT3D_ID)\n"
-                << "# Number of images: " << scene.cameras.size() << "\n";
+                << "# Number of images: " << scene.images.size() << "\n";
 
             imgFile << std::fixed << std::setprecision(6);
-            for (const auto& [image_id, cam] : scene.cameras) {
+
+            for (const auto& [image_id, img] : scene.images) {
                 glm::quat q;
                 glm::vec3 t;
-                computeColmapExtrinsics(cam, q, t);
+                computeColmapExtrinsics(img, q, t);
 
                 imgFile << image_id << " " << q.w << " " << q.x << " " << q.y << " " << q.z << " "
-                    << t.x << " " << t.y << " " << t.z << " " << cam.cameraID << " " << cam.imageName << "\n";
+                    << t.x << " " << t.y << " " << t.z << " " << img.cameraID << " " << img.imageName << "\n";
 
-                for (size_t i = 0; i < cam.features.size(); ++i) {
-                    uint64_t p3d_id = deletedPointIDs.contains(cam.features[i].point3D_id)
+                for (size_t i = 0; i < img.features.size(); ++i) {
+                    uint64_t p3d_id = deletedPointIDs.contains(img.features[i].point3D_id)
                                           ? invalidPoint3DId
-                                          : cam.features[i].point3D_id;
+                                          : img.features[i].point3D_id;
 
                     if (p3d_id == invalidPoint3DId)
-                        imgFile << cam.features[i].coordinates.x << " " << cam.features[i].
+                        imgFile << img.features[i].coordinates.x << " " << img.features[i].
                                                                            coordinates.y << " -1";
                     else
-                        imgFile << cam.features[i].coordinates.x << " " << cam.features[i].coordinates.y << " " <<
+                        imgFile << img.features[i].coordinates.x << " " << img.features[i].coordinates.y << " " <<
                             p3d_id;
 
-                    if (i != cam.features.size() - 1) imgFile << " ";
+                    if (i != img.features.size() - 1) imgFile << " ";
                 }
                 imgFile << "\n";
             }
         } else return false;
 
-        // 3. POINTS3D.TXT
         if (std::ofstream ptsFile(exportDir / "points3D.txt"); ptsFile) {
             ptsFile << "# 3D point list with one line of data per point:\n"
                 << "#   POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX)\n"
@@ -295,16 +288,6 @@ namespace sfmeditor {
                 outActualNumPoints++;
             }
         }
-    }
-
-    std::unordered_map<uint32_t, const CameraPose*> SceneExporter::getUniqueCameras(const SfMScene& scene) {
-        std::unordered_map<uint32_t, const CameraPose*> uniqueCameras;
-        for (const auto& [image_id, cam] : scene.cameras) {
-            if (!uniqueCameras.contains(cam.cameraID)) {
-                uniqueCameras[cam.cameraID] = &cam;
-            }
-        }
-        return uniqueCameras;
     }
 
     void SceneExporter::computeColmapExtrinsics(const CameraPose& cam, glm::quat& outQ, glm::vec3& outT) {

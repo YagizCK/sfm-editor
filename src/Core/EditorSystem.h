@@ -37,6 +37,8 @@ namespace sfmeditor {
         SelectionManager* getSelectionManager() const { return m_selectionManager.get(); }
         ActionHistory* getActionHistory() const { return m_actionHistory.get(); }
 
+        SceneProperties* sceneProperties = nullptr;
+
         int gizmoOperation = ImGuizmo::TRANSLATE;
         bool useSnap = false;
         float snapTranslation = 1.0f;
@@ -52,14 +54,14 @@ namespace sfmeditor {
         bool boxSelecting = false;
         bool pendingPickedID = false;
 
-        uint32_t isolatedCameraID = 0;
+        uint32_t isolatedImageID = 0;
 
     private:
         void setupInputCallbacks();
 
-        EditorCamera* m_camera;
+        EditorCamera* m_camera = nullptr;
         ViewportInfo m_viewportInfo;
-        SfMScene* m_scene;
+        SfMScene* m_scene = nullptr;
 
         std::unique_ptr<SelectionManager> m_selectionManager;
         std::unique_ptr<ActionHistory> m_actionHistory;

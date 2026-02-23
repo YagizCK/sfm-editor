@@ -192,6 +192,15 @@ namespace sfmeditor {
         distance = resetDistance;
         position = focalPoint - (getForwardVector() * distance);
         lookAt(focalPoint);
+        FOV = 103.0f;
+
+        lensModel = 0;
+        for (float& distParam : distParams) distParam = 0.0f;
+        principalPoint = glm::vec2(0.5f, 0.5f);
+
+        updateView();
+        updateProjection();
+
         Logger::info("Camera Focused to Origin");
     }
 

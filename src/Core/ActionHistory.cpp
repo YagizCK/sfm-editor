@@ -30,14 +30,14 @@ namespace sfmeditor {
 
     void ActionHistory::recordTransformAction(const std::vector<PointState>& oldPoints,
                                               const std::vector<PointState>& newPoints,
-                                              const std::vector<std::pair<uint32_t, CameraPose>>& oldCams,
-                                              const std::vector<std::pair<uint32_t, CameraPose>>& newCams) {
+                                              const std::vector<std::pair<uint32_t, CameraPose>>& oldImages,
+                                              const std::vector<std::pair<uint32_t, CameraPose>>& newImages) {
         EditorAction action;
         action.type = ActionType::Transform;
         action.oldStates = oldPoints;
         action.newStates = newPoints;
-        action.oldCamStates = oldCams;
-        action.newCamStates = newCams;
+        action.oldImages = oldImages;
+        action.newImages = newImages;
 
         m_undoStack.push_back(action);
         m_redoStack.clear();
@@ -54,18 +54,17 @@ namespace sfmeditor {
             action.newStates.push_back({idx, m_scene->points[idx].position, -1.0f});
         }
 
-        for (const uint32_t camID : m_selectionManager->selectedCameraIDs) {
-            if (m_scene->cameras.contains(camID)) {
-                action.oldCamStates.push_back({camID, m_scene->cameras.at(camID)});
-                m_scene->cameras.erase(camID);
+        for (const uint32_t imageID : m_selectionManager->selectedImageIDs) {
+            if (m_scene->images.contains(imageID)) {
+                action.oldImages.push_back({imageID, m_scene->images.at(imageID)});
+                m_scene->images.erase(imageID);
             }
         }
 
         m_undoStack.push_back(action);
         m_redoStack.clear();
         m_selectionManager->clearSelection(false);
-        Logger::info(std::format("Deleted {} points and {} cameras.", action.oldStates.size(),
-                                 action.oldCamStates.size()));
+        Logger::info(std::format("Deleted {} points and {} images.", action.oldStates.size(), action.oldImages.size()));
     }
 
     void ActionHistory::undo() {
@@ -84,13 +83,13 @@ namespace sfmeditor {
         }
 
         if (action.type == ActionType::Delete) {
-            for (const auto& [camID, oldCam] : action.oldCamStates) {
-                m_scene->cameras[camID] = oldCam;
-                m_selectionManager->addCameraToSelection(camID);
+            for (const auto& [imageID, oldImg] : action.oldImages) {
+                m_scene->images[imageID] = oldImg;
+                m_selectionManager->addImageToSelection(imageID);
             }
         } else {
-            for (const auto& [camID, oldCam] : action.oldCamStates) {
-                m_scene->cameras[camID] = oldCam;
+            for (const auto& [imageID, oldImg] : action.oldImages) {
+                m_scene->images[imageID] = oldImg;
             }
         }
 
@@ -115,13 +114,13 @@ namespace sfmeditor {
         }
 
         if (action.type == ActionType::Delete) {
-            for (const auto& [camID, oldCam] : action.oldCamStates) {
-                m_scene->cameras.erase(camID);
-                m_selectionManager->removeCameraFromSelection(camID);
+            for (const auto& [imageID, oldImg] : action.oldImages) {
+                m_scene->images.erase(imageID);
+                m_selectionManager->removeImageFromSelection(imageID);
             }
         } else {
-            for (const auto& [camID, newCam] : action.newCamStates) {
-                m_scene->cameras[camID] = newCam;
+            for (const auto& [imageID, newImg] : action.newImages) {
+                m_scene->images[imageID] = newImg;
             }
         }
 

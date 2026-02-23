@@ -35,6 +35,7 @@ namespace sfmeditor {
         void setBool(const std::string& name, bool value) const;
         void setInt(const std::string& name, int value) const;
         void setFloat(const std::string& name, float value) const;
+        void setFloatArray(const std::string& name, const float* values, uint32_t count) const;
 
         void setVec2(const std::string& name, const glm::vec2& value) const;
         void setVec2(const std::string& name, float x, float y) const;

@@ -28,6 +28,8 @@ namespace sfmeditor {
     SceneRenderer::SceneRenderer() {
         m_pointShader = std::make_unique<Shader>("assets/shaders/basic.vert", "assets/shaders/basic.frag");
         m_pickingShader = std::make_unique<Shader>("assets/shaders/picking.vert", "assets/shaders/picking.frag");
+        m_postProcessShader = std::make_unique<Shader>("assets/shaders/postprocess.vert",
+                                                       "assets/shaders/postprocess.frag");
     }
 
     SceneRenderer::~SceneRenderer() {
@@ -140,5 +142,59 @@ namespace sfmeditor {
         id -= 1;
 
         return id;
+    }
+
+    void SceneRenderer::initPostProcess() {
+        constexpr float quadVertices[] = {
+            -1.0f, 1.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, 1.0f, 0.0f,
+
+            -1.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, -1.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f
+        };
+
+        glGenVertexArrays(1, &m_ppVAO);
+        glGenBuffers(1, &m_ppVBO);
+        glBindVertexArray(m_ppVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_ppVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), static_cast<void*>(nullptr));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+        glBindVertexArray(0);
+    }
+
+    void SceneRenderer::renderPostProcess(const uint32_t inputTexture, const EditorCamera* camera,
+                                          const ViewportInfo& vp) const {
+        glDisable(GL_DEPTH_TEST);
+        m_postProcessShader->bind();
+
+        const int modelId = camera->lensModel;
+        const glm::vec2 resolution = vp.size;
+        const glm::vec2 principal = resolution * camera->principalPoint;
+
+        const float focalY = (resolution.y * 0.5f) / std::tan(glm::radians(camera->FOV * 0.5f));
+        const auto focal = glm::vec2(focalY, focalY);
+
+        m_postProcessShader->setInt("u_ModelId", modelId);
+        m_postProcessShader->setVec2("u_Focal", focal);
+        m_postProcessShader->setVec2("u_Principal", principal);
+        m_postProcessShader->setVec2("u_Resolution", resolution);
+        m_postProcessShader->setInt("u_ScreenTexture", 0);
+
+        m_postProcessShader->setFloatArray("u_DistParams", camera->distParams, 8);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, inputTexture);
+
+        glBindVertexArray(m_ppVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+
+        m_postProcessShader->unbind();
+        glEnable(GL_DEPTH_TEST);
     }
 }

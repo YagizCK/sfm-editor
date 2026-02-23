@@ -92,7 +92,7 @@ namespace sfmeditor {
             m_renderBuffer.push_back({line.end, line.color});
         }
 
-        const size_t vertexCount = m_renderBuffer.size();
+        const int vertexCount = static_cast<int>(m_renderBuffer.size());
 
         glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 

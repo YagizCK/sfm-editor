@@ -51,7 +51,7 @@ namespace sfmeditor {
                         float minDepth = FLT_MAX;
                         const glm::mat4 vp = m_camera->getViewProjection();
 
-                        for (const auto& [id, cam] : m_scene->cameras) {
+                        for (const auto& [id, cam] : m_scene->images) {
                             glm::vec4 clipPos = vp * glm::vec4(cam.position, 1.0f);
                             if (clipPos.w > 0.01f) {
                                 glm::vec2 ndc = glm::vec2(clipPos.x, clipPos.y) / clipPos.w;
@@ -67,22 +67,32 @@ namespace sfmeditor {
                         }
 
                         if (hitCameraID != 0) {
-                            const bool isCtrl = Input::isKeyPressed(SFM_KEY_LEFT_CONTROL);
-                            if (!isCtrl) m_selectionManager->clearSelection();
+                            if (!Input::isKeyPressed(SFM_KEY_LEFT_CONTROL)) m_selectionManager->clearSelection();
 
-                            auto& camList = m_selectionManager->selectedCameraIDs;
+                            auto& camList = m_selectionManager->selectedImageIDs;
                             if (std::find(camList.begin(), camList.end(), hitCameraID) != camList.
                                 end())
-                                m_selectionManager->removeCameraFromSelection(hitCameraID);
-                            else m_selectionManager->addCameraToSelection(hitCameraID);
+                                m_selectionManager->removeImageFromSelection(hitCameraID);
+                            else m_selectionManager->addImageToSelection(hitCameraID);
                             updateGizmoCenter();
                         } else {
                             pendingPickedID = true;
                         }
                     } else {
                         boxEnd = end;
-                        m_selectionManager->processBoxSelection(m_camera->getViewProjection(), m_viewportInfo, boxStart,
-                                                                boxEnd, Input::isKeyPressed(SFM_KEY_LEFT_CONTROL));
+
+                        const bool canSelectPoints = sceneProperties ? sceneProperties->showPoints : true;
+                        const bool canSelectCameras = sceneProperties ? sceneProperties->showCameras : true;
+
+                        m_selectionManager->processBoxSelection(
+                            m_camera->getViewProjection(),
+                            m_viewportInfo,
+                            boxStart,
+                            boxEnd,
+                            Input::isKeyPressed(SFM_KEY_LEFT_CONTROL),
+                            canSelectPoints,
+                            canSelectCameras
+                        );
                     }
                 }
             }
@@ -92,7 +102,10 @@ namespace sfmeditor {
             if (!m_viewportInfo.focused || action != SFM_PRESS) return;
 
             if (Input::isKeyPressed(SFM_KEY_LEFT_CONTROL) && key == SFM_KEY_A) {
-                m_selectionManager->selectAll();
+                const bool canSelectPoints = sceneProperties ? sceneProperties->showPoints : true;
+                const bool canSelectCameras = sceneProperties ? sceneProperties->showCameras : true;
+
+                m_selectionManager->selectAll(canSelectPoints, canSelectCameras);
             }
 
             if (!Input::isMouseButtonPressed(SFM_MOUSE_BUTTON_RIGHT)) {
@@ -125,8 +138,8 @@ namespace sfmeditor {
             for (const unsigned int idx : m_selectionManager->selectedPointIndices) {
                 m_dragStartStates.push_back({idx, m_scene->points[idx].position, m_scene->points[idx].selected});
             }
-            for (const unsigned int id : m_selectionManager->selectedCameraIDs) {
-                if (m_scene->cameras.contains(id)) m_dragStartCamStates.push_back({id, m_scene->cameras.at(id)});
+            for (const unsigned int id : m_selectionManager->selectedImageIDs) {
+                if (m_scene->images.contains(id)) m_dragStartCamStates.push_back({id, m_scene->images.at(id)});
             }
         } else if (!isUsingGizmo && m_wasUsingGizmo) {
             std::vector<PointState> newPointStates;
@@ -135,8 +148,8 @@ namespace sfmeditor {
             for (const unsigned int idx : m_selectionManager->selectedPointIndices) {
                 newPointStates.push_back({idx, m_scene->points[idx].position, m_scene->points[idx].selected});
             }
-            for (const unsigned int id : m_selectionManager->selectedCameraIDs) {
-                if (m_scene->cameras.contains(id)) newCamStates.push_back({id, m_scene->cameras.at(id)});
+            for (const unsigned int id : m_selectionManager->selectedImageIDs) {
+                if (m_scene->images.contains(id)) newCamStates.push_back({id, m_scene->images.at(id)});
             }
 
             m_actionHistory->recordTransformAction(m_dragStartStates, newPointStates, m_dragStartCamStates,
@@ -166,9 +179,9 @@ namespace sfmeditor {
                     m_selectionManager->markAsChanged(idx);
                 }
 
-                for (const uint32_t camID : m_selectionManager->selectedCameraIDs) {
-                    if (m_scene->cameras.contains(camID)) {
-                        auto& cam = m_scene->cameras.at(camID);
+                for (const uint32_t camID : m_selectionManager->selectedImageIDs) {
+                    if (m_scene->images.contains(camID)) {
+                        auto& cam = m_scene->images.at(camID);
                         cam.position = glm::vec3(deltaTransform * glm::vec4(cam.position, 1.0f));
                         cam.orientation = glm::normalize(deltaRot * cam.orientation);
                     }
@@ -196,9 +209,9 @@ namespace sfmeditor {
                     count++;
                 }
             }
-            for (const uint32_t id : m_selectionManager->selectedCameraIDs) {
-                if (m_scene->cameras.contains(id)) {
-                    center += m_scene->cameras.at(id).position;
+            for (const uint32_t id : m_selectionManager->selectedImageIDs) {
+                if (m_scene->images.contains(id)) {
+                    center += m_scene->images.at(id).position;
                     count++;
                 }
             }

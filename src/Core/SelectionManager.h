@@ -30,21 +30,25 @@ namespace sfmeditor {
 
         bool hasSelection() const;
         void clearSelection(bool modifyScenePoints = true);
-        void selectAll();
+        void selectAll(bool selectPoints = true, bool selectCameras = true);
         void resetState();
 
         void processPickedID(int pickedID, bool isCtrlPressed);
         void processBoxSelection(const glm::mat4& vpMatrix, const ViewportInfo& vpInfo, const glm::vec2& boxStart,
-                                 const glm::vec2& boxEnd, bool isCtrlPressed);
+                                 const glm::vec2& boxEnd, bool isCtrlPressed, bool allowPointSelection,
+                                 bool allowCameraSelection);
 
         void addPointToSelection(unsigned int idx);
         void removePointFromSelection(unsigned int idx);
-        void addCameraToSelection(uint32_t id);
-        void removeCameraFromSelection(uint32_t id);
+        void addImageToSelection(uint32_t id);
+        void removeImageFromSelection(uint32_t id);
         void markAsChanged(unsigned int idx);
 
+        void selectPointsByError(double minError);
+        void selectPointsByTrackLength(size_t maxTrackLength);
+
         std::vector<unsigned int> selectedPointIndices;
-        std::vector<uint32_t> selectedCameraIDs;
+        std::vector<uint32_t> selectedImageIDs;
         std::vector<unsigned int> changedIndices;
 
     private:

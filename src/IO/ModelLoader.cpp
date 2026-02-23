@@ -161,24 +161,20 @@ namespace sfmeditor {
     }
 
     void ModelLoader::loadColmapCameras(const std::string& directory, SfMScene& scene) {
-        std::string camerasPath = (std::filesystem::path(directory) / "cameras.bin").string();
-        std::ifstream camFile(camerasPath, std::ios::binary);
-        std::unordered_map<uint32_t, ColmapCameraDef> cameraDefs;
-
+        std::ifstream camFile((std::filesystem::path(directory) / "cameras.bin").string(), std::ios::binary);
         if (camFile) {
             uint64_t numCameras;
             camFile.read(reinterpret_cast<char*>(&numCameras), sizeof(uint64_t));
 
             for (uint64_t i = 0; i < numCameras; ++i) {
-                uint32_t cam_id;
-                ColmapCameraDef def;
-                camFile.read(reinterpret_cast<char*>(&cam_id), sizeof(uint32_t));
-                camFile.read(reinterpret_cast<char*>(&def.model_id), sizeof(int));
-                camFile.read(reinterpret_cast<char*>(&def.width), sizeof(uint64_t));
-                camFile.read(reinterpret_cast<char*>(&def.height), sizeof(uint64_t));
+                Camera cam;
+                camFile.read(reinterpret_cast<char*>(&cam.cameraID), sizeof(uint32_t));
+                camFile.read(reinterpret_cast<char*>(&cam.modelId), sizeof(int));
+                camFile.read(reinterpret_cast<char*>(&cam.width), sizeof(uint64_t));
+                camFile.read(reinterpret_cast<char*>(&cam.height), sizeof(uint64_t));
 
                 size_t numParams = 0;
-                switch (def.model_id) {
+                switch (cam.modelId) {
                 case 0: numParams = 3;
                     break;
                 case 1:
@@ -193,25 +189,24 @@ namespace sfmeditor {
                     break;
                 default: numParams = 3;
                 }
-                def.params.resize(numParams);
-                camFile.read(reinterpret_cast<char*>(def.params.data()), numParams * sizeof(double));
-                cameraDefs[cam_id] = def;
+                cam.extraParams.resize(numParams);
+                camFile.read(reinterpret_cast<char*>(cam.extraParams.data()), numParams * sizeof(double));
+                computeCameraIntrinsics(cam);
+                scene.cameras[cam.cameraID] = std::move(cam);
             }
         }
 
-        std::string imagesPath = (std::filesystem::path(directory) / "images.bin").string();
-        std::ifstream imgFile(imagesPath, std::ios::binary);
+        std::ifstream imgFile((std::filesystem::path(directory) / "images.bin").string(), std::ios::binary);
         if (!imgFile) return;
 
         uint64_t numImages;
         imgFile.read(reinterpret_cast<char*>(&numImages), sizeof(uint64_t));
 
         for (uint64_t i = 0; i < numImages; ++i) {
-            CameraPose cam;
-            uint32_t image_id, camera_id;
+            CameraPose img;
             double qw, qx, qy, qz, tx, ty, tz;
 
-            imgFile.read(reinterpret_cast<char*>(&image_id), sizeof(uint32_t));
+            imgFile.read(reinterpret_cast<char*>(&img.imageID), sizeof(uint32_t));
             imgFile.read(reinterpret_cast<char*>(&qw), sizeof(double));
             imgFile.read(reinterpret_cast<char*>(&qx), sizeof(double));
             imgFile.read(reinterpret_cast<char*>(&qy), sizeof(double));
@@ -219,14 +214,14 @@ namespace sfmeditor {
             imgFile.read(reinterpret_cast<char*>(&tx), sizeof(double));
             imgFile.read(reinterpret_cast<char*>(&ty), sizeof(double));
             imgFile.read(reinterpret_cast<char*>(&tz), sizeof(double));
-            imgFile.read(reinterpret_cast<char*>(&camera_id), sizeof(uint32_t));
+            imgFile.read(reinterpret_cast<char*>(&img.cameraID), sizeof(uint32_t));
 
             char c;
-            while (imgFile.read(&c, 1) && c != '\0') { cam.imageName += c; }
+            while (imgFile.read(&c, 1) && c != '\0') { img.imageName += c; }
 
             uint64_t numPoints2D;
             imgFile.read(reinterpret_cast<char*>(&numPoints2D), sizeof(uint64_t));
-            cam.features.resize(numPoints2D);
+            img.features.resize(numPoints2D);
 
             for (uint64_t j = 0; j < numPoints2D; ++j) {
                 double x, y;
@@ -234,76 +229,57 @@ namespace sfmeditor {
                 imgFile.read(reinterpret_cast<char*>(&x), sizeof(double));
                 imgFile.read(reinterpret_cast<char*>(&y), sizeof(double));
                 imgFile.read(reinterpret_cast<char*>(&point3D_id), sizeof(uint64_t));
-                cam.features[j] = {glm::vec2(static_cast<float>(x), static_cast<float>(y)), point3D_id};
+                img.features[j] = {glm::vec2(static_cast<float>(x), static_cast<float>(y)), point3D_id};
             }
 
-            cam.cameraID = camera_id;
-            computeCameraExtrinsics(cam, qw, qx, qy, qz, tx, ty, tz);
-
-            if (cameraDefs.contains(camera_id)) {
-                applyCameraIntrinsics(cam, cameraDefs[camera_id]);
-            } else {
-                cam.modelId = -1;
-                cam.width = 1920;
-                cam.height = 1080;
-                cam.focalLength = 1000.0f;
-                cam.focalLengthY = 1000.0f;
-            }
-
-            scene.cameras[image_id] = std::move(cam);
+            computeCameraExtrinsics(img, qw, qx, qy, qz, tx, ty, tz);
+            scene.images[img.imageID] = std::move(img);
         }
-        Logger::info(std::format("Successfully loaded {} camera poses (Binary).", scene.cameras.size()));
+        Logger::info(std::format("Loaded {} intrinsic cameras and {} images (poses).", scene.cameras.size(),
+                                 scene.images.size()));
     }
 
     void ModelLoader::loadColmapCamerasText(const std::string& directory, SfMScene& scene) {
-        std::string camerasPath = (std::filesystem::path(directory) / "cameras.txt").string();
-        std::ifstream camFile(camerasPath);
-        std::unordered_map<uint32_t, ColmapCameraDef> cameraDefs;
-
+        std::ifstream camFile((std::filesystem::path(directory) / "cameras.txt").string());
         if (camFile) {
             std::string line;
             while (std::getline(camFile, line)) {
                 if (line.empty() || line[0] == '#') continue;
-
                 std::stringstream ss(line);
                 uint32_t cam_id;
                 std::string modelStr;
                 uint64_t width, height;
 
                 if (ss >> cam_id >> modelStr >> width >> height) {
-                    ColmapCameraDef def{-1, width, height, {}};
-
-                    if (modelStr == "SIMPLE_PINHOLE") def.model_id = 0;
-                    else if (modelStr == "PINHOLE") def.model_id = 1;
-                    else if (modelStr == "SIMPLE_RADIAL") def.model_id = 2;
-                    else if (modelStr == "RADIAL") def.model_id = 3;
-                    else if (modelStr == "OPENCV") def.model_id = 4;
-                    else if (modelStr == "OPENCV_FISHEYE") def.model_id = 5;
-                    else if (modelStr == "FULL_OPENCV") def.model_id = 6;
+                    Camera cam{cam_id, 0, width, height};
+                    if (modelStr == "SIMPLE_PINHOLE") cam.modelId = 0;
+                    else if (modelStr == "PINHOLE") cam.modelId = 1;
+                    else if (modelStr == "SIMPLE_RADIAL") cam.modelId = 2;
+                    else if (modelStr == "RADIAL") cam.modelId = 3;
+                    else if (modelStr == "OPENCV") cam.modelId = 4;
+                    else if (modelStr == "OPENCV_FISHEYE") cam.modelId = 5;
+                    else if (modelStr == "FULL_OPENCV") cam.modelId = 6;
 
                     double param;
-                    while (ss >> param) def.params.push_back(param);
-                    cameraDefs[cam_id] = def;
+                    while (ss >> param) cam.extraParams.push_back(param);
+                    computeCameraIntrinsics(cam);
+                    scene.cameras[cam_id] = cam;
                 }
             }
         }
 
-        std::string imagesPath = (std::filesystem::path(directory) / "images.txt").string();
-        std::ifstream imgFile(imagesPath);
+        std::ifstream imgFile((std::filesystem::path(directory) / "images.txt").string());
         if (!imgFile) return;
 
         std::string line1, line2;
         while (std::getline(imgFile, line1) && std::getline(imgFile, line2)) {
-            if (line1.empty() || line1[0] == '#') {
-                continue;
-            }
+            if (line1.empty() || line1[0] == '#') continue;
 
             std::stringstream ss1(line1);
-            CameraPose cam;
-            uint32_t image_id, camera_id;
+            CameraPose img;
             double qw, qx, qy, qz, tx, ty, tz;
 
-            if (ss1 >> image_id >> qw >> qx >> qy >> qz >> tx >> ty >> tz >> camera_id >> cam.imageName) {
+            if (ss1 >> img.imageID >> qw >> qx >> qy >> qz >> tx >> ty >> tz >> img.cameraID >> img.imageName) {
                 std::stringstream ss2(line2);
                 double x, y;
                 long long point3D_id_raw;
@@ -312,26 +288,14 @@ namespace sfmeditor {
                     uint64_t p3d = (point3D_id_raw < 0)
                                        ? static_cast<uint64_t>(-1)
                                        : static_cast<uint64_t>(point3D_id_raw);
-                    cam.features.push_back({glm::vec2(static_cast<float>(x), static_cast<float>(y)), p3d});
+                    img.features.push_back({glm::vec2(static_cast<float>(x), static_cast<float>(y)), p3d});
                 }
-
-                cam.cameraID = camera_id;
-                computeCameraExtrinsics(cam, qw, qx, qy, qz, tx, ty, tz);
-
-                if (cameraDefs.contains(camera_id)) {
-                    applyCameraIntrinsics(cam, cameraDefs[camera_id]);
-                } else {
-                    cam.modelId = -1;
-                    cam.width = 1920;
-                    cam.height = 1080;
-                    cam.focalLength = 1000.0f;
-                    cam.focalLengthY = 1000.0f;
-                }
-
-                scene.cameras[image_id] = std::move(cam);
+                computeCameraExtrinsics(img, qw, qx, qy, qz, tx, ty, tz);
+                scene.images[img.imageID] = std::move(img);
             }
         }
-        Logger::info(std::format("Successfully loaded {} camera poses (Text).", scene.cameras.size()));
+        Logger::info(std::format("Loaded {} intrinsic cameras and {} images (poses).", scene.cameras.size(),
+                                 scene.images.size()));
     }
 
     SfMScene ModelLoader::loadPLY(const std::string& filepath) {
@@ -426,24 +390,17 @@ namespace sfmeditor {
         cam.orientation = glm::quat_cast(glm::transpose(R));
     }
 
-    void ModelLoader::applyCameraIntrinsics(CameraPose& cam, const ColmapCameraDef& def) {
-        cam.modelId = def.model_id;
-        cam.width = def.width;
-        cam.height = def.height;
-        cam.extraParams = def.params;
-
-        if (!def.params.empty()) {
-            cam.focalLength = static_cast<float>(def.params[0]);
-            if (def.model_id == 0 || def.model_id == 2 || def.model_id == 3) {
-                // f, cx, cy
+    void ModelLoader::computeCameraIntrinsics(Camera& cam) {
+        if (!cam.extraParams.empty()) {
+            cam.focalLength = static_cast<float>(cam.extraParams[0]);
+            if (cam.modelId == 0 || cam.modelId == 2 || cam.modelId == 3) {
                 cam.focalLengthY = cam.focalLength;
-                cam.principalPointX = static_cast<float>(def.params[1]);
-                cam.principalPointY = static_cast<float>(def.params[2]);
-            } else if (def.model_id == 1 || def.model_id == 4) {
-                // fx, fy, cx, cy
-                cam.focalLengthY = static_cast<float>(def.params[1]);
-                cam.principalPointX = static_cast<float>(def.params[2]);
-                cam.principalPointY = static_cast<float>(def.params[3]);
+                cam.principalPointX = static_cast<float>(cam.extraParams[1]);
+                cam.principalPointY = static_cast<float>(cam.extraParams[2]);
+            } else if (cam.modelId == 1 || cam.modelId == 4) {
+                cam.focalLengthY = static_cast<float>(cam.extraParams[1]);
+                cam.principalPointX = static_cast<float>(cam.extraParams[2]);
+                cam.principalPointY = static_cast<float>(cam.extraParams[3]);
             }
         }
     }

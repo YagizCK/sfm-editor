@@ -19,7 +19,6 @@
 #include "Panels/UIPanel.h"
 #include "Panels/ViewportPanel.h"
 #include "Panels/PropertiesPanel.h"
-#include "Panels/ConsolePanel.h"
 
 #include <vector>
 #include <memory>
@@ -28,6 +27,7 @@
 
 namespace sfmeditor {
     class Window;
+    class AnalyticsPanel;
 
     class UIManager {
     public:
@@ -59,7 +59,8 @@ namespace sfmeditor {
         bool m_resetLayout = true;
 
         std::unique_ptr<ViewportPanel> m_viewportPanel;
-
         std::vector<std::unique_ptr<UIPanel>> m_otherPanels;
+
+        AnalyticsPanel* m_analyticsPanel = nullptr;
     };
 }

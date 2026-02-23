@@ -38,8 +38,6 @@ namespace sfmeditor {
                                        std::unordered_set<uint64_t>& outDeletedIDs,
                                        uint64_t& outActualNumPoints);
 
-        static std::unordered_map<uint32_t, const CameraPose*> getUniqueCameras(const SfMScene& scene);
-
         static void computeColmapExtrinsics(const CameraPose& cam,
                                             glm::quat& outQ, glm::vec3& outT);
     };

@@ -51,6 +51,10 @@ namespace sfmeditor {
         float FOV = 103.0f;
         float orthoSize = 170.0f;
 
+        int lensModel = 0;
+        float distParams[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        glm::vec2 principalPoint = {0.5f, 0.5f};
+
         float pitch = 0.0f;
         float yaw = 0.0f;
         float roll = 0.0f;

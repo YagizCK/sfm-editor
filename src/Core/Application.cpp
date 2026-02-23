@@ -68,10 +68,13 @@ namespace sfmeditor {
         m_sceneProperties = std::make_unique<SceneProperties>();
         m_renderer = std::make_unique<SceneRenderer>();
         m_framebuffer = std::make_unique<Framebuffer>(1600, 900);
+        m_postProcessFramebuffer = std::make_unique<Framebuffer>(1600, 900);
+        m_renderer->initPostProcess();
         m_grid = std::make_unique<SceneGrid>();
         m_lineRenderer = std::make_unique<LineRenderer>();
         m_camera = std::make_unique<EditorCamera>();
         m_editorSystem = std::make_unique<EditorSystem>(m_camera.get(), &m_scene);
+        m_editorSystem->sceneProperties = m_sceneProperties.get();
         m_uiManager = std::make_unique<UIManager>(m_window.get());
         m_uiManager->initPanels(m_sceneProperties.get(), m_camera.get(), &m_scene, m_editorSystem.get());
 
@@ -99,6 +102,10 @@ namespace sfmeditor {
                 m_lastViewportSize = viewportInfo.size;
                 m_framebuffer->resize(static_cast<uint32_t>(viewportInfo.size.x),
                                       static_cast<uint32_t>(viewportInfo.size.y));
+
+                m_postProcessFramebuffer->resize(static_cast<uint32_t>(viewportInfo.size.x),
+                                                 static_cast<uint32_t>(viewportInfo.size.y));
+
                 m_camera->onResize(viewportInfo.size.x, viewportInfo.size.y);
             }
 
@@ -118,7 +125,9 @@ namespace sfmeditor {
                 glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-                m_renderer->renderPickingPass(m_scene.points, m_sceneProperties.get(), m_camera.get());
+                if (m_sceneProperties->showPoints) {
+                    m_renderer->renderPickingPass(m_scene.points, m_sceneProperties.get(), m_camera.get());
+                }
 
                 const bool isCtrl = Input::isKeyPressed(SFM_KEY_LEFT_CONTROL);
 
@@ -146,52 +155,68 @@ namespace sfmeditor {
             m_lineRenderer->clear();
 
             const float camSize = m_sceneProperties->cameraSize;
+            if (m_sceneProperties->showCameras) {
+                for (const auto& [image_id, img] : m_scene.images) {
+                    if (m_editorSystem->isolatedImageID != 0) {
+                        continue;
+                    }
 
-            for (const auto& [image_id, cam] : m_scene.cameras) {
-                if (m_editorSystem->isolatedCameraID != 0) {
-                    continue;
+                    bool isSelected = std::find(m_editorSystem->getSelectionManager()->selectedImageIDs.begin(),
+                                                m_editorSystem->getSelectionManager()->selectedImageIDs.end(),
+                                                image_id) != m_editorSystem->getSelectionManager()->selectedImageIDs.
+                                                                             end();
+
+                    glm::vec3 camColor = isSelected ? glm::vec3(1.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.5f, 0.0f);
+
+                    glm::mat4 rotationMatrix = glm::mat4_cast(img.orientation);
+                    glm::mat4 model = glm::translate(glm::mat4(1.0f), img.position) * rotationMatrix;
+
+                    auto center = glm::vec3(model * glm::vec4(0, 0, 0, 1));
+
+                    float aspectRatio = 1.0f;
+                    if (m_scene.cameras.contains(img.cameraID)) {
+                        const auto& cam = m_scene.cameras.at(img.cameraID);
+                        if (cam.height > 0 && cam.width > 0) {
+                            aspectRatio = static_cast<float>(cam.width) / static_cast<float>(cam.height);
+                        }
+                    }
+
+                    float w = camSize * aspectRatio;
+                    float h = camSize;
+                    float z = camSize * 2.0f;
+
+                    auto tl = glm::vec3(model * glm::vec4(-w, -h, z, 1.0f));
+                    auto tr = glm::vec3(model * glm::vec4(w, -h, z, 1.0f));
+                    auto bl = glm::vec3(model * glm::vec4(-w, h, z, 1.0f));
+                    auto br = glm::vec3(model * glm::vec4(w, h, z, 1.0f));
+
+                    m_lineRenderer->addLine(center, tl, camColor, 0.0f);
+                    m_lineRenderer->addLine(center, tr, camColor, 0.0f);
+                    m_lineRenderer->addLine(center, bl, camColor, 0.0f);
+                    m_lineRenderer->addLine(center, br, camColor, 0.0f);
+
+                    m_lineRenderer->addLine(tl, tr, camColor, 0.0f);
+                    m_lineRenderer->addLine(tr, br, camColor, 0.0f);
+                    m_lineRenderer->addLine(br, bl, camColor, 0.0f);
+                    m_lineRenderer->addLine(bl, tl, camColor, 0.0f);
                 }
-
-                bool isSelected = std::find(m_editorSystem->getSelectionManager()->selectedCameraIDs.begin(),
-                                            m_editorSystem->getSelectionManager()->selectedCameraIDs.end(),
-                                            image_id) != m_editorSystem->getSelectionManager()->selectedCameraIDs.end();
-
-                glm::vec3 camColor = isSelected ? glm::vec3(1.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.5f, 0.0f);
-
-                glm::mat4 rotationMatrix = glm::mat4_cast(cam.orientation);
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), cam.position) * rotationMatrix;
-
-                auto center = glm::vec3(model * glm::vec4(0, 0, 0, 1));
-
-                float aspectRatio = 1.0f;
-                if (cam.height > 0 && cam.width > 0) {
-                    aspectRatio = static_cast<float>(cam.width) / static_cast<float>(cam.height);
-                }
-
-                float w = camSize * aspectRatio;
-                float h = camSize;
-                float z = camSize * 2.0f;
-
-                auto tl = glm::vec3(model * glm::vec4(-w, -h, z, 1.0f));
-                auto tr = glm::vec3(model * glm::vec4(w, -h, z, 1.0f));
-                auto bl = glm::vec3(model * glm::vec4(-w, h, z, 1.0f));
-                auto br = glm::vec3(model * glm::vec4(w, h, z, 1.0f));
-
-                m_lineRenderer->addLine(center, tl, camColor, 0.0f);
-                m_lineRenderer->addLine(center, tr, camColor, 0.0f);
-                m_lineRenderer->addLine(center, bl, camColor, 0.0f);
-                m_lineRenderer->addLine(center, br, camColor, 0.0f);
-
-                m_lineRenderer->addLine(tl, tr, camColor, 0.0f);
-                m_lineRenderer->addLine(tr, br, camColor, 0.0f);
-                m_lineRenderer->addLine(br, bl, camColor, 0.0f);
-                m_lineRenderer->addLine(bl, tl, camColor, 0.0f);
             }
 
             m_lineRenderer->draw(m_camera);
-            m_renderer->render(m_scene.points, m_sceneProperties.get(), m_camera.get());
+
+            if (m_sceneProperties->showPoints) {
+                m_renderer->render(m_scene.points, m_sceneProperties.get(), m_camera.get());
+            }
 
             m_framebuffer->unbind();
+
+            m_postProcessFramebuffer->bind();
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            m_renderer->renderPostProcess(m_framebuffer->getTextureID(), m_camera.get(), viewportInfo);
+
+            m_postProcessFramebuffer->unbind();
 
             // UI Pass
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -207,7 +232,7 @@ namespace sfmeditor {
                 [this]() { m_editorSystem->getActionHistory()->undo(); },
                 [this]() { m_editorSystem->getActionHistory()->redo(); }
             );
-            m_uiManager->getViewportPanel()->setTextureID(m_framebuffer->getTextureID());
+            m_uiManager->getViewportPanel()->setTextureID(m_postProcessFramebuffer->getTextureID());
             m_uiManager->renderPanels();
             m_uiManager->endFrame();
 
@@ -310,8 +335,8 @@ namespace sfmeditor {
 
         m_currentFilePath = filepath;
 
-        Logger::info(std::format("Successfully loaded {} points and {} cameras.", m_scene.points.size(),
-                                 m_scene.cameras.size()));
+        Logger::info(std::format("Successfully loaded {} points, {} sensors and {} images.",
+                                 m_scene.points.size(), m_scene.cameras.size(), m_scene.images.size()));
     }
 
     void Application::onExit() {

@@ -66,6 +66,7 @@ namespace sfmeditor {
         std::unique_ptr<SceneProperties> m_sceneProperties;
         std::unique_ptr<SceneRenderer> m_renderer;
         std::unique_ptr<Framebuffer> m_framebuffer;
+        std::unique_ptr<Framebuffer> m_postProcessFramebuffer;
         std::unique_ptr<SceneGrid> m_grid;
         std::unique_ptr<LineRenderer> m_lineRenderer;
         std::unique_ptr<EditorCamera> m_camera;

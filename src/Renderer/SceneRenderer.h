@@ -46,12 +46,18 @@ namespace sfmeditor {
 
         static int readPointID(int mouseX, int mouseY, int vpHeight);
 
+        void initPostProcess();
+        void renderPostProcess(uint32_t inputTexture, const EditorCamera* camera, const ViewportInfo& vp) const;
+
     private:
         uint32_t m_VAO = 0, m_VBO = 0;
 
         std::unique_ptr<Shader> m_pointShader;
         std::unique_ptr<Shader> m_pickingShader;
+        std::unique_ptr<Shader> m_postProcessShader;
 
         const float m_thresholdFactor = 0.1f;
+
+        uint32_t m_ppVAO = 0, m_ppVBO = 0;
     };
 }
