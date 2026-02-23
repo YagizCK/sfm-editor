@@ -19,6 +19,8 @@
 #include "Core/Types.hpp"
 
 #include <string>
+#include <unordered_set>
+#include <unordered_map>
 
 namespace sfmeditor {
     class SceneExporter {
@@ -27,8 +29,18 @@ namespace sfmeditor {
 
     private:
         static bool exportCOLMAP(const std::string& filepath, const SfMScene& scene);
+        static bool exportCOLMAPText(const std::string& filepath, const SfMScene& scene);
         static bool exportPLY(const std::string& filepath, const SfMScene& scene);
         static bool exportOBJ(const std::string& filepath, const SfMScene& scene);
         static bool exportXYZ(const std::string& filepath, const SfMScene& scene);
+
+        static void extractValidPoints(const SfMScene& scene,
+                                       std::unordered_set<uint64_t>& outDeletedIDs,
+                                       uint64_t& outActualNumPoints);
+
+        static std::unordered_map<uint32_t, const CameraPose*> getUniqueCameras(const SfMScene& scene);
+
+        static void computeColmapExtrinsics(const CameraPose& cam,
+                                            glm::quat& outQ, glm::vec3& outT);
     };
 }

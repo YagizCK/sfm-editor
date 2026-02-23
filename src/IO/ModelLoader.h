@@ -21,6 +21,13 @@
 #include <string>
 
 namespace sfmeditor {
+    struct ColmapCameraDef {
+        int model_id;
+        uint64_t width;
+        uint64_t height;
+        std::vector<double> params;
+    };
+
     class ModelLoader {
     public:
         static SfMScene load(const std::string& filepath);
@@ -30,9 +37,14 @@ namespace sfmeditor {
         static SfMScene loadColmapText(const std::string& filepath);
 
         static void loadColmapCameras(const std::string& directory, SfMScene& scene);
+        static void loadColmapCamerasText(const std::string& directory, SfMScene& scene);
 
         static SfMScene loadPLY(const std::string& filepath);
         static SfMScene loadOBJ(const std::string& filepath);
         static SfMScene loadXYZ(const std::string& filepath);
+
+        static void computeCameraExtrinsics(CameraPose& cam, double qw, double qx, double qy, double qz, double tx,
+                                            double ty, double tz);
+        static void applyCameraIntrinsics(CameraPose& cam, const ColmapCameraDef& def);
     };
 }

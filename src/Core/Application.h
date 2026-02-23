@@ -47,9 +47,15 @@ namespace sfmeditor {
         float getDeltaTime() const { return m_deltaTime; }
 
     private:
+        std::string m_currentFilePath = "";
+
+        void onImportColmapModel();
+        void onSaveColmapModel(bool isBinary);
+
         void onImportMap();
+        void onSaveMap();
+
         void loadMap(const std::string& filepath);
-        void onSaveMap() const;
         void onExit();
 
         float m_lastFrameTime = 0.0f;

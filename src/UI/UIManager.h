@@ -40,8 +40,12 @@ namespace sfmeditor {
         void beginFrame();
         void endFrame() const;
 
-        void renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
-                               const std::function<void()>& onExit, const std::function<void()>& onUndo,
+        void renderMainMenuBar(const std::function<void()>& onImportMap,
+                               const std::function<void()>& onImportColmapModel,
+                               const std::function<void()>& onSaveMap,
+                               const std::function<void(bool)>& onSaveColmapModel,
+                               const std::function<void()>& onExit,
+                               const std::function<void()>& onUndo,
                                const std::function<void()>& onRedo);
 
         void renderPanels() const;

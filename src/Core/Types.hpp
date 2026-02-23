@@ -50,6 +50,7 @@ namespace sfmeditor {
 
     struct Point2D {
         glm::vec2 coordinates;
+        uint64_t point3D_id = static_cast<uint64_t>(-1);
     };
 
     struct CameraPose {

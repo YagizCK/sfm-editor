@@ -22,7 +22,8 @@ namespace sfmeditor {
     class FileDialog {
     public:
         static std::string openFile(const char* filter);
+        static std::string saveFile(const char* filter, int* outFilterIndex = nullptr);
 
-        static std::string saveFile(const char* filter);
+        static std::string pickFolder();
     };
 }

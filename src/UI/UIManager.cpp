@@ -78,14 +78,28 @@ namespace sfmeditor {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 
-    void UIManager::renderMainMenuBar(const std::function<void()>& onImport, const std::function<void()>& onSave,
-                                      const std::function<void()>& onExit, const std::function<void()>& onUndo,
+    void UIManager::renderMainMenuBar(const std::function<void()>& onImportMap,
+                                      const std::function<void()>& onImportColmapModel,
+                                      const std::function<void()>& onSaveMap,
+                                      const std::function<void(bool)>& onSaveColmapModel,
+                                      const std::function<void()>& onExit,
+                                      const std::function<void()>& onUndo,
                                       const std::function<void()>& onRedo) {
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Import Map...", "Ctrl+O")) { if (onImport) onImport(); }
-                if (ImGui::MenuItem("Save", "Ctrl+S")) { if (onSave) onSave(); }
-                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) { if (onSave) onSave(); }
+                if (ImGui::MenuItem("Import COLMAP Model...", "Ctrl+O")) {
+                    if (onImportColmapModel) onImportColmapModel();
+                }
+                if (ImGui::MenuItem("Export Model (Binary)...", "Ctrl+S")) {
+                    if (onSaveColmapModel) onSaveColmapModel(true);
+                }
+                if (ImGui::MenuItem("Export Model (Text)...")) { if (onSaveColmapModel) onSaveColmapModel(false); }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Import Point Cloud...")) { if (onImportMap) onImportMap(); }
+                if (ImGui::MenuItem("Save Point Cloud")) { if (onSaveMap) onSaveMap(); }
+
                 ImGui::Separator();
                 if (ImGui::MenuItem("Exit", "Alt+F4")) { if (onExit) onExit(); }
                 ImGui::EndMenu();

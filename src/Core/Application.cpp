@@ -31,6 +31,7 @@
 #include <format>
 #include <imgui.h>
 #include <ImGuizmo.h>
+#include <filesystem>
 
 
 namespace sfmeditor {
@@ -42,21 +43,13 @@ namespace sfmeditor {
         Events::onKey.connect([this](const int key, const int action) {
             if (action != SFM_PRESS) return;
 
-            if (m_running && key == SFM_KEY_ESCAPE) {
-                m_running = false;
-            }
-
             if (Input::isKeyPressed(SFM_KEY_LEFT_CONTROL)) {
                 if (key == SFM_KEY_O) {
-                    onImportMap();
+                    onImportColmapModel();
                     return;
                 }
                 if (key == SFM_KEY_S) {
-                    onSaveMap();
-                    return;
-                }
-                if (Input::isKeyPressed(SFM_KEY_LEFT_SHIFT) && key == SFM_KEY_S) {
-                    onSaveMap();
+                    onSaveColmapModel(true);
                     return;
                 }
                 if (key == SFM_KEY_Z) {
@@ -207,7 +200,9 @@ namespace sfmeditor {
             m_uiManager->beginFrame();
             m_uiManager->renderMainMenuBar(
                 [this]() { onImportMap(); },
+                [this]() { onImportColmapModel(); },
                 [this]() { onSaveMap(); },
+                [this](const bool isBinary) { onSaveColmapModel(isBinary); },
                 [this]() { onExit(); },
                 [this]() { m_editorSystem->getActionHistory()->undo(); },
                 [this]() { m_editorSystem->getActionHistory()->redo(); }
@@ -220,17 +215,82 @@ namespace sfmeditor {
         }
     }
 
+    void Application::onImportColmapModel() {
+        std::string folderPath = FileDialog::pickFolder();
+        if (!folderPath.empty()) {
+            const std::filesystem::path binPath = std::filesystem::path(folderPath) / "points3D.bin";
+            const std::filesystem::path txtPath = std::filesystem::path(folderPath) / "points3D.txt";
+
+            if (std::filesystem::exists(binPath)) {
+                loadMap(binPath.string());
+            } else if (std::filesystem::exists(txtPath)) {
+                loadMap(txtPath.string());
+            } else {
+                Logger::error("Invalid Model: No points3D.bin or points3D.txt found in " + folderPath);
+            }
+        }
+    }
+
+    void Application::onSaveColmapModel(const bool isBinary) {
+        std::string folderPath = FileDialog::pickFolder();
+        if (!folderPath.empty()) {
+            Logger::info("Exporting model to: " + folderPath);
+
+            const std::filesystem::path targetFile = std::filesystem::path(folderPath) / (isBinary
+                    ? "points3D.bin"
+                    : "points3D.txt");
+
+            if (SceneExporter::exportFile(targetFile.string(), m_scene)) {
+                Logger::info("Model exported successfully.");
+                m_currentFilePath = targetFile.string();
+            } else {
+                Logger::error("Failed to export model!");
+            }
+        }
+    }
+
     void Application::onImportMap() {
         const auto filter =
-            "All Supported\0*.bin;*.txt;*.ply;*.obj;*.xyz\0"
-            "COLMAP Binary (*.bin)\0*.bin\0"
-            "COLMAP Text (*.txt)\0*.txt\0"
+            "Point Cloud Files\0*.ply;*.obj;*.xyz\0"
             "Stanford PLY (*.ply)\0*.ply\0"
             "Wavefront OBJ (*.obj)\0*.obj\0"
             "XYZ Points (*.xyz)\0*.xyz\0";
 
         if (const std::string filepath = FileDialog::openFile(filter); !filepath.empty()) {
             loadMap(filepath);
+        }
+    }
+
+    void Application::onSaveMap() {
+        const auto filter =
+            "Stanford PLY (*.ply)\0*.ply\0"
+            "Wavefront OBJ (*.obj)\0*.obj\0"
+            "XYZ Points (*.xyz)\0*.xyz\0";
+
+        int filterIndex = 0;
+        std::string filepath = FileDialog::saveFile(filter, &filterIndex);
+
+        if (!filepath.empty()) {
+            std::filesystem::path path(filepath);
+
+            if (!path.has_extension()) {
+                if (filterIndex == 1) {
+                    filepath += ".ply";
+                } else if (filterIndex == 2) {
+                    filepath += ".obj";
+                } else if (filterIndex == 3) {
+                    filepath += ".xyz";
+                }
+            }
+
+            Logger::info("Saving map as: " + filepath);
+
+            if (SceneExporter::exportFile(filepath, m_scene)) {
+                Logger::info("Map saved successfully.");
+                m_currentFilePath = filepath;
+            } else {
+                Logger::error("Failed to save map!");
+            }
         }
     }
 
@@ -248,21 +308,10 @@ namespace sfmeditor {
         m_editorSystem->getSelectionManager()->resetState();
         m_renderer->initBuffers(m_scene.points);
 
+        m_currentFilePath = filepath;
+
         Logger::info(std::format("Successfully loaded {} points and {} cameras.", m_scene.points.size(),
                                  m_scene.cameras.size()));
-    }
-
-    void Application::onSaveMap() const {
-        const auto filter =
-            "COLMAP Binary (*.bin)\0*.bin\0"
-            "Stanford PLY (*.ply)\0*.ply\0"
-            "Wavefront OBJ (*.obj)\0*.obj\0"
-            "XYZ Points (*.xyz)\0*.xyz\0";
-
-        if (const std::string filepath = FileDialog::saveFile(filter); !filepath.empty()) {
-            if (SceneExporter::exportFile(filepath, m_scene)) Logger::info("Map saved successfully.");
-            else Logger::error("Failed to save map!");
-        }
     }
 
     void Application::onExit() {
