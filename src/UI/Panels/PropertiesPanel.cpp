@@ -367,7 +367,14 @@ namespace sfmeditor {
                     }
 
                     ImGui::Separator();
-                    ImGui::Text("Features: %zu points", img.features.size());
+                    const size_t numTriangulated = std::count_if(
+                        img.features.begin(),
+                        img.features.end(),
+                        [](const auto& f) { return f.point3D_id != -1; }
+                    );
+                    ImGui::Text("Features: %zu points (%zu triangulated)",
+                                img.features.size(),
+                                numTriangulated);
 
                     ImGui::Dummy(ImVec2(0.0f, 2.0f));
                     if (ImGui::Button("Teleport Here", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
