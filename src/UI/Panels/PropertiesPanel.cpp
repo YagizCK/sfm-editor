@@ -266,6 +266,11 @@ namespace sfmeditor {
             } else {
                 unsigned int pointIdx = selectedIndices[0];
 
+                if (pointIdx < m_scene->points.size()) {
+                    const auto& pt = m_scene->points[pointIdx];
+                    ImGui::Text("Position: X: %.5f, Y: %.5f, Z: %.5f", pt.position.x, pt.position.y, pt.position.z);
+                }
+
                 if (pointIdx < m_scene->metadata.size()) {
                     const auto& meta = m_scene->metadata[pointIdx];
 
@@ -322,6 +327,7 @@ namespace sfmeditor {
                     ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Image: %s", img.imageName.c_str());
                     ImGui::Text("Image ID: %u", img.imageID);
                     ImGui::Text("Sensor / Camera ID: %u", img.cameraID);
+                    ImGui::Text("Position: X: %.5f, Y: %.5f, Z: %.5f", img.position.x, img.position.y, img.position.z);
 
                     if (m_scene->cameras.contains(img.cameraID)) {
                         auto& cam = m_scene->cameras.at(img.cameraID);
