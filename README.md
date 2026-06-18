@@ -5,6 +5,16 @@
 
 A high-performance **C++ 3D Editor** designed for visualizing, analyzing, and manipulating **Structure from Motion (SfM)** data and point clouds.
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0083b06c-0ccb-417e-8649-dbdbaa95c083" alt="sfm-editor UI Overview" width="96%">
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/bbbdf674-afff-4be3-bde1-bdf4189c95da" alt="sfm-editor Demo 1" width="48%">
+  <img src="https://github.com/user-attachments/assets/e46efe88-1d61-4830-91e0-9cf273183aef" alt="sfm-editor Demo 2" width="48%">
+</p>
+---
+
 ✨ **Key Features:**
 * **Advanced SfM Visualization:** Load COLMAP binary/text, PLY, OBJ, and XYZ formats. Aspect-ratio-aware camera frustum rendering.
 * **Interactive Manipulation:** Transform (Translate, Rotate, Scale) point clouds and camera poses using 3D Gizmos.
